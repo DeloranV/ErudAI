@@ -26,3 +26,5 @@ class ChatDialog(QDialog):
         root_layout.addLayout(left_layout)
         root_layout.addSpacing(100)
         root_layout.addLayout(right_layout)
+
+        print("test")
