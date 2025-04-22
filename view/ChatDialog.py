@@ -5,26 +5,23 @@ class ChatDialog(QDialog):
 
     def __init__(self, parent=None):
         super(ChatDialog, self).__init__(parent)
-        root_layout = QHBoxLayout(self)
-        left_layout = QVBoxLayout()
-        right_layout = QVBoxLayout()
+        root_layout = QVBoxLayout(self)
+        top_layout = QHBoxLayout()
+        bottom_layout = QHBoxLayout()
 
         text1 = QLabel("zmienna1")
-        text2 = QLabel("zmienna2")
 
-        left_layout.addWidget(text1)
-
-        left_layout.addWidget(text2)
+        top_layout.addWidget(text1)
 
         input1 = QLineEdit()
-        input2 = QLineEdit()
+        sendButton = QPushButton(self)
 
-        right_layout.addWidget(input1)
+        bottom_layout.addWidget(input1)
 
-        right_layout.addWidget(input2)
+        bottom_layout.addWidget(sendButton)
 
-        root_layout.addLayout(left_layout)
+        root_layout.addLayout(top_layout)
         root_layout.addSpacing(100)
-        root_layout.addLayout(right_layout)
+        root_layout.addLayout(bottom_layout)
 
         print("test")
