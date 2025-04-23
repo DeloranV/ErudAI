@@ -13,4 +13,4 @@ query = Query(api_key=hf_api_key,
               base_url="https://fn7lxcome3tixe20.us-east-1.aws.endpoints.huggingface.cloud/v1/",
               debug=True)
 
-result = query.execute(prompt=f"Enter drafts in my gmail. This map of UI elements specifies what view has what button and what the buttons are leading to: [{context_var}]")
+query.execute(prompt=f"Enter drafts in my gmail. This map of UI elements specifies what view has what button and what the buttons are leading to: [{context_var}]")
