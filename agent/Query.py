@@ -4,8 +4,9 @@ import time
 from openai import OpenAI
 
 class Query:
-    def __init__(self, prompt: str, debug=False):
-        self.prompt = prompt
+    def __init__(self, api_key: str, base_url: str = "https://openrouter.ai/api/v1", debug=False):
+        self.api_key = api_key
+        self.base_url = base_url
         self.debug = debug
 
         if debug:
@@ -13,10 +14,10 @@ class Query:
             with open(self.log_name, "x") as log_file:
                 log_file.write(f"LOG FILE FROM {datetime.datetime.now().isoformat()}\n")
 
-    def _create_connection(self, api_key: str, base_url) -> OpenAI:
+    def _create_connection(self) -> OpenAI:
         client = OpenAI(
-            api_key = f"{api_key}",
-            base_url = base_url,
+            api_key = f"{self.api_key}",
+            base_url = self.base_url,
         )
         return client
 
@@ -32,18 +33,16 @@ class Query:
 
         return coordsInt
 
-    def send(self, encoded_image: str, api_key: str,
-             base_url: str = "https://openrouter.ai/api/v1") -> list:
+    def send(self, prompt: str, encoded_image: str) -> list:
         """
         Sends the request to the model on behalf of the user
         Returns the coordinates of the queried element
         Args:
+            prompt - Prompt query to send to the model
             encoded_image - Encoded snapshot given in the form of a string
-            api_key - Valid API key to include with the request
-            base_url - Url to an endpoint hosting the model. Defaults to OpenRouter UI-TARS-72B
         """
         try:
-            client = self._create_connection(api_key, base_url)
+            client = self._create_connection()
             completion = client.chat.completions.create(
                 extra_headers={},
                 extra_body={},
@@ -54,7 +53,7 @@ class Query:
                         "content": [
                             {
                                 "type": "text",
-                                "text": f"Give me coordinates for the following action: {self.prompt}"
+                                "text": f"Give me coordinates for the following action: {prompt}"
                             },
                             {
                                 "type": "image_url",
