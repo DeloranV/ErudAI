@@ -20,6 +20,6 @@ class GraphRetriever:
                 end_name = record.get("e.name")
                 end_type = record.get("e.type")
 
-                context_var += " ".join([begin_name, begin_type, relationship_type, end_name, end_type]) + "\n"
+                context_var += ";".join([begin_name, begin_type, relationship_type, end_name, end_type]) + "\n"
 
         return context_var

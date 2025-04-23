@@ -1,13 +1,26 @@
 import openai
 import datetime
 import time
+import keyboard
 from openai import OpenAI
 
+from agent import ActionPerformer
+from util import ImageEncoder, Snapshotter
+
 class Query:
-    def __init__(self, api_key: str, base_url: str = "https://openrouter.ai/api/v1", debug=False):
+    def __init__(self, api_key: str,
+                 base_url: str = "https://openrouter.ai/api/v1",
+                 multistep: bool=True,
+                 debug: bool=False):
+
         self.api_key = api_key
         self.base_url = base_url
+        self.multistep = multistep
         self.debug = debug
+
+        self.image_encoder = ImageEncoder()
+        self.snapshotter = Snapshotter()
+        self.action_performer = ActionPerformer()
 
         if debug:
             self.log_name = f"logs/LOG_{time.time()}.txt"
@@ -21,7 +34,7 @@ class Query:
         )
         return client
 
-    def _prepare_result(self, output: str) -> list | None:
+    def _prepare_result(self, output: str) -> list:
         coordsStr = output[1:-1].split(',')
 
         coordsInt = []
@@ -33,7 +46,17 @@ class Query:
 
         return coordsInt
 
-    def send_once(self, prompt: str, encoded_image: str) -> list:
+    def execute(self, prompt: str):
+        if self.multistep:
+            while True: # DO-WHILE LOOP CONFORMING WITH PEP
+                encoded = self.image_encoder.encode(self.snapshotter.snapshot())
+                result = self._send(prompt=prompt, encoded_image=encoded)
+                if result is None or keyboard.is_pressed("e"):
+                    break
+                self.action_performer.performClick(result)
+                time.sleep(10)
+
+    def _send(self, prompt: str, encoded_image: str) -> list | None:
         """
         Sends the request to the model on behalf of the user
         Returns the coordinates of the queried element
@@ -53,7 +76,7 @@ class Query:
                         "content": [
                             {
                                 "type": "text",
-                                "text": f"Give me coordinates for the following action and respond 'finish' when the goal is reached: {prompt}"
+                                "text": f"Give me coordinates for the following action: {prompt}"
                             },
                             {
                                 "type": "image_url",
@@ -66,11 +89,17 @@ class Query:
                 ]
             )
 
-            coordinates = self._prepare_result(completion.choices[0].message.content)
+            result = completion.choices[0].message.content
+
+            if "finish" in result:
+                return None
+
+            coordinates = self._prepare_result(result)
 
             if self.debug:
                 with open(self.log_name, 'a') as log_file:
                     log_file.write(f"Coordinates: {coordinates}\n")
+                    log_file.write(f"Response: {result}\n")
 
             return coordinates
 
@@ -80,4 +109,5 @@ class Query:
         finally:
             if self.debug:
                 with open(self.log_name, 'a') as log_file:
+                    log_file.write(f"Prompt: {prompt}\n")
                     log_file.write(f"Encoded image: {encoded_image}\n")
