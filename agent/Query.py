@@ -110,4 +110,4 @@ class Query:
             if self.debug:
                 with open(self.log_name, 'a') as log_file:
                     log_file.write(f"Prompt: {prompt}\n")
-                    log_file.write(f"Encoded image: {encoded_image}\n")
+                    #log_file.write(f"Encoded image: {encoded_image}\n")
