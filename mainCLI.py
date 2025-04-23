@@ -19,7 +19,7 @@ query = Query(api_key=hf_api_key,
 
 encoded = image_encoder.encode(snapshotter.snapshot())
 
-result = query.send(prompt="Enter gmail for me",
-                    encoded_image=encoded)
+result = query.send_once(prompt=f"Check drafts in my gmail. Here is the context from the UI database {context_var}",
+                         encoded_image=encoded)
 
 action_performer.perform(result)

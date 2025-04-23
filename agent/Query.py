@@ -21,7 +21,7 @@ class Query:
         )
         return client
 
-    def _prepare_result(self, output: str) -> list:
+    def _prepare_result(self, output: str) -> list | None:
         coordsStr = output[1:-1].split(',')
 
         coordsInt = []
@@ -33,7 +33,7 @@ class Query:
 
         return coordsInt
 
-    def send(self, prompt: str, encoded_image: str) -> list:
+    def send_once(self, prompt: str, encoded_image: str) -> list:
         """
         Sends the request to the model on behalf of the user
         Returns the coordinates of the queried element
@@ -53,7 +53,7 @@ class Query:
                         "content": [
                             {
                                 "type": "text",
-                                "text": f"Give me coordinates for the following action: {prompt}"
+                                "text": f"Give me coordinates for the following action and respond 'finish' when the goal is reached: {prompt}"
                             },
                             {
                                 "type": "image_url",
