@@ -54,7 +54,7 @@ class Query:
                 if result is None or keyboard.is_pressed("e"):
                     break
                 self.action_performer.performClick(result)
-                time.sleep(10)
+                time.sleep(5)
 
     def _send(self, prompt: str, encoded_image: str) -> list | None:
         """
@@ -76,7 +76,7 @@ class Query:
                         "content": [
                             {
                                 "type": "text",
-                                "text": f"Give me coordinates for the following action: {prompt}"
+                                "text": f"Give me coordinates in [x,y] to click for the following action: {prompt}"
                             },
                             {
                                 "type": "image_url",
@@ -86,7 +86,15 @@ class Query:
                             }
                         ]
                     }
-                ]
+                ],
+                # top_p = None,
+                # temperature = None,
+                # max_tokens = 150,
+                # stream = False,
+                # seed = None,
+                # stop = None,
+                # frequency_penalty = None,
+                # presence_penalty = None
             )
 
             result = completion.choices[0].message.content
@@ -98,8 +106,8 @@ class Query:
 
             if self.debug:
                 with open(self.log_name, 'a') as log_file:
-                    log_file.write(f"Coordinates: {coordinates}\n")
-                    log_file.write(f"Response: {result}\n")
+                    log_file.write(f"<coordinates>: {coordinates}\n")
+                    log_file.write(f"<response>: {result}\n")
 
             return coordinates
 
@@ -109,5 +117,5 @@ class Query:
         finally:
             if self.debug:
                 with open(self.log_name, 'a') as log_file:
-                    log_file.write(f"Prompt: {prompt}\n")
+                    log_file.write(f"<prompt>: {prompt}\n")
                     #log_file.write(f"Encoded image: {encoded_image}\n")
