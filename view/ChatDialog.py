@@ -2,7 +2,23 @@ from agent import Query
 from rag import GraphRetriever
 
 from PySide6.QtWidgets import QDialog, QComboBox, QVBoxLayout, QHBoxLayout, QLineEdit, QLabel, QTableWidget, QListWidget, QPushButton, QHBoxLayout, QRadioButton, QButtonGroup
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QThread
+
+class QueryThread(QThread):
+    def __init__(self, endpoint_api_key, endpoint_url, user_input, context_var):
+        super().__init__()
+        self.endpoint_api_key = endpoint_api_key
+        self.endpoint_url = endpoint_url
+        self.user_input = user_input
+        self.context_var = context_var
+
+    def run(self):
+        query = Query(api_key=self.endpoint_api_key,
+                      base_url=self.endpoint_url,
+                      debug=True)
+
+        query.execute(
+            prompt=f"{self.user_input}. This map of UI elements specifies what view has what button and what the buttons are leading to: [{self.context_var}]")
 
 class ChatDialog(QDialog):
 
@@ -16,6 +32,9 @@ class ChatDialog(QDialog):
 
         self.endpoint_url = endpoint_url
         self.endpoint_api_key = endpoint_api_key
+
+        # THREAD NEEDS TO BE IN A CONTAINER OR AS A CLASS MEMBER TO NOT GO OUT OF SCOPE
+        self.temp_thread_container = [] # TODO MAKE IT NICER - CLASS VARIABLE INSTEAD OF CONTAINER
 
         #LAYOUT DECLARATION
         root_layout = QVBoxLayout(self)
@@ -88,13 +107,14 @@ class ChatDialog(QDialog):
             if self.program_option_mode == "Action":
                 user_input = user_input_widget.text()
                 context_var = self.graph.get_ui_context()
+                query_thread = QueryThread(endpoint_api_key=self.endpoint_api_key,
+                                           endpoint_url=self.endpoint_url,
+                                           user_input=user_input,
+                                           context_var=context_var)
 
-                query = Query(api_key=self.endpoint_api_key,
-                              base_url=self.endpoint_url,
-                              debug=True)
-
-                query.execute(
-                    prompt=f"{user_input}. This map of UI elements specifies what view has what button and what the buttons are leading to: [{context_var}]")
+                query_thread.start()
+                self.temp_thread_container.append(query_thread)
+                self.showMinimized()
 
         send_button.clicked.connect(on_submit)
 
