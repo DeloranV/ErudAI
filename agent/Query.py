@@ -54,7 +54,7 @@ class Query:
                 if result is None or keyboard.is_pressed("e"):
                     break
                 self.action_performer.performClick(result)
-                time.sleep(5)
+                time.sleep(2)
 
     def _send(self, prompt: str, encoded_image: str) -> list | None:
         """
