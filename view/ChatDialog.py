@@ -1,13 +1,21 @@
-from urllib.response import addbase
+from agent import Query
+from rag import GraphRetriever
 
 from PySide6.QtWidgets import QDialog, QComboBox, QVBoxLayout, QHBoxLayout, QLineEdit, QLabel, QTableWidget, QListWidget, QPushButton, QHBoxLayout, QRadioButton, QButtonGroup
-from util.ImageEncoder import ImageEncoder
 from PySide6.QtCore import Qt
 
 class ChatDialog(QDialog):
 
-    def __init__(self, parent=None):
+    def __init__(self, n4j_uri: str, n4j_auth: tuple[str, str], n4j_db_name: str, endpoint_url: str, endpoint_api_key: str, parent=None):
         super(ChatDialog, self).__init__(parent)
+
+        self.program_option_mode = None
+
+        self.graph = GraphRetriever(n4j_uri, n4j_auth, n4j_db_name)
+        self.graph.test_connectivity()
+
+        self.endpoint_url = endpoint_url
+        self.endpoint_api_key = endpoint_api_key
 
         #LAYOUT DECLARATION
         root_layout = QVBoxLayout(self)
@@ -76,16 +84,17 @@ class ChatDialog(QDialog):
         root_layout.addSpacing(10)
         root_layout.addLayout(bottom_layout)
 
-
-
-        #PROGRAM MODE AND USER INPUT VARIABLES
-        program_option_mode = None
-        user_input = None
-
-        # RETURN USER INPUT
         def on_submit():
-            user_input = user_input_widget.text()
-            print(user_input)
+            if self.program_option_mode == "Action":
+                user_input = user_input_widget.text()
+                context_var = self.graph.get_ui_context()
+
+                query = Query(api_key=self.endpoint_api_key,
+                              base_url=self.endpoint_url,
+                              debug=True)
+
+                query.execute(
+                    prompt=f"{user_input}. This map of UI elements specifies what view has what button and what the buttons are leading to: [{context_var}]")
 
         send_button.clicked.connect(on_submit)
 
@@ -100,12 +109,11 @@ class ChatDialog(QDialog):
 
         #RETURN CHECKED RADIO BUTTON OPTION
         def update_selection_buttons():
-            global program_option_mode
             if program_option_button_message.isChecked():
-                program_option_mode = "Message"
-                print(program_option_mode)
+                self.program_option_mode = "Message"
+
             elif program_option_button_action.isChecked():
-                program_option_mode = "Action"
-                print(program_option_mode)
+                self.program_option_mode = "Action"
+
         program_option_button_message.toggled.connect(update_selection_buttons)
         program_option_button_action.toggled.connect(update_selection_buttons)
