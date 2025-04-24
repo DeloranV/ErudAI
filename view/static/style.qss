@@ -1,7 +1,58 @@
+QMainWindow, QDialog {
+    background: #555555;
+}
+
+QLabel {
+    color: #2ABf9E;
+    font-weight: bold;
+    font-size: 25px;
+}
+
 QPushButton {
     background: #2ABf9E;
     border-width: 1px;
     border-style: solid;
-    border-radius: 2px;
+    border-radius: 15px;
     padding: 5px;
+}
+
+QPushButton:hover {
+    background: #009999;
+}
+
+QPushButton:pressed {
+    background: #006666;
+}
+
+QLineEdit{
+    background-color: #666666;
+    border-width: 1px;
+    border-style: solid;
+    border-radius: 15px;
+    padding: 5px;
+}
+
+QListWidget{
+    background: #666666;
+    border-width: 1px;
+    border-style: solid;
+    border-radius: 15px;
+    padding: 5px;
+}
+
+QRadioButton::indicator {
+    width: 10px;
+    height: 10px;
+    border: 1px solid;
+    border-radius: 5px;
+    background-color: #666666;
+}
+
+QRadioButton::indicator:checked {
+    border-color: #000000;
+    background-color: #333333;
+}
+
+QRadioButton::indicator:hover {
+    border-color: #333333;
 }
