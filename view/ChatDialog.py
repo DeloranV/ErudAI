@@ -22,13 +22,18 @@ class QueryThread(QThread):
 
 class ChatDialog(QDialog):
 
-    def __init__(self, n4j_uri: str, n4j_auth: tuple[str, str], n4j_db_name: str, endpoint_url: str, endpoint_api_key: str, parent=None):
+    def __init__(self, n4j_uri: str = None,
+                 n4j_auth: tuple[str, str] = None,
+                 n4j_db_name: str = None,
+                 endpoint_api_key: str = None,
+                 endpoint_url: str = "https://openrouter.ai/api/v1",
+                 parent=None):
         super(ChatDialog, self).__init__(parent)
 
         self.program_option_mode = None
 
-        self.graph = GraphRetriever(n4j_uri, n4j_auth, n4j_db_name)
-        self.graph.test_connectivity()
+        # self.graph = GraphRetriever(n4j_uri, n4j_auth, n4j_db_name)
+        # self.graph.test_connectivity()
 
         self.endpoint_url = endpoint_url
         self.endpoint_api_key = endpoint_api_key
@@ -103,20 +108,20 @@ class ChatDialog(QDialog):
         root_layout.addSpacing(10)
         root_layout.addLayout(bottom_layout)
 
-        def on_submit():
-            if self.program_option_mode == "Action":
-                user_input = user_input_widget.text()
-                context_var = self.graph.get_ui_context()
-                query_thread = QueryThread(endpoint_api_key=self.endpoint_api_key,
-                                           endpoint_url=self.endpoint_url,
-                                           user_input=user_input,
-                                           context_var=context_var)
-
-                query_thread.start()
-                self.temp_thread_container.append(query_thread)
-                self.showMinimized()
-
-        send_button.clicked.connect(on_submit)
+        # def on_submit():
+        #     if self.program_option_mode == "Action":
+        #         user_input = user_input_widget.text()
+        #         context_var = self.graph.get_ui_context()
+        #         query_thread = QueryThread(endpoint_api_key=self.endpoint_api_key,
+        #                                    endpoint_url=self.endpoint_url,
+        #                                    user_input=user_input,
+        #                                    context_var=context_var)
+        #
+        #         query_thread.start()
+        #         self.temp_thread_container.append(query_thread)
+        #         self.showMinimized()
+        #
+        # send_button.clicked.connect(on_submit)
 
         """
         #RETURN LIST OPTION
