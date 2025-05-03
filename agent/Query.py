@@ -178,7 +178,7 @@ class Query:
 
         COMPUTER_USE_PROMPT = f"""
         You are a GUI agent. You are given a task, with screenshots. You need to perform the next action to complete the task.
-
+        
         ## Output Format
         ```
         Thought: ...
@@ -192,7 +192,7 @@ class Query:
         type(content='xxx') # Use escape characters \\', \\\", and \\n in content part to ensure we can parse the content in normal python string format. If you want to submit your input, use \\n at the end of content. 
         scroll(start_box='<|box_start|>(x1,y1)<|box_end|>', direction='down or up or right or left')
         wait() #Sleep for 5s and take a screenshot to check for any changes.
-        finished(content='xxx') # Use escape characters \\', \\", and \\n in content part to ensure we can parse the content in normal python string format.
+        finished(content='xxx') # When all steps are done and destination goal was reached. Use escape characters \\', \\", and \\n in content part to ensure we can parse the content in normal python string format.
         
         
         ## Note
