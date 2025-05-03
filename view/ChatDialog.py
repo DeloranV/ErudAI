@@ -15,7 +15,7 @@ class QueryThread(QThread):
     def run(self):
         query = Query(api_key=self.endpoint_api_key,
                       base_url=self.endpoint_url,
-                      debug=True)
+                      debug=False)
 
         query.execute(
             prompt=f"{self.user_input}. This map of UI elements specifies what view has what button and what the buttons are leading to: [{self.context_var}]")
@@ -115,6 +115,8 @@ class ChatDialog(QDialog):
                 query_thread.start()
                 self.temp_thread_container.append(query_thread)
                 self.showMinimized()
+
+                if query_thread.isFinished(): self.showMaximized()
 
         send_button.clicked.connect(on_submit)
 

@@ -13,3 +13,6 @@ class ActionPerformer:
 
     def performClick(self, coordinates: list) -> None:
         pyautogui.click(*coordinates)
+
+    def performInput(self, content: str):
+        pyautogui.write(content)
