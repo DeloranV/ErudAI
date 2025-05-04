@@ -3,7 +3,6 @@ from time import sleep
 import openai
 import datetime
 import time
-import keyboard
 from openai import OpenAI
 import re
 import ast
@@ -100,13 +99,13 @@ class Query:
         if action_type in ["click"]:
             start_box = action_inputs.get("start_box")
 
+            x2, y2 = 0, 0
             if len(start_box) == 2:
                 x1, y1 = start_box
                 x2 = round(int(x1) * 1280 / 1000)
                 y2 = round(int(y1) * 720 / 1000)
 
-            print(x2, y2)
-            self.action_performer.performClick([x2, y2])
+            self.action_performer.perform_click([x2, y2])
             return 1
 
         if action_type == "type":
@@ -117,7 +116,7 @@ class Query:
                 stripped_content = stripped_content.rstrip("\\n").rstrip("\n")
 
             if content:
-                self.action_performer.performInput(stripped_content)
+                self.action_performer.perform_input(stripped_content)
                 return 1
                 # if content.endswith("\n") or content.endswith("\\n"):
                 #     pyautogui.press("enter")

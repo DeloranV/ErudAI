@@ -1,7 +1,7 @@
 from agent import Query
-from rag import GraphRetriever
+from graph import Pathfinder
 
-from PySide6.QtWidgets import QDialog, QComboBox, QVBoxLayout, QHBoxLayout, QLineEdit, QLabel, QTableWidget, QListWidget, QPushButton, QHBoxLayout, QRadioButton, QButtonGroup
+from PySide6.QtWidgets import QDialog, QComboBox, QVBoxLayout, QLineEdit, QLabel, QListWidget, QPushButton, QHBoxLayout, QRadioButton
 from PySide6.QtCore import Qt, QThread
 
 class QueryThread(QThread):
@@ -15,7 +15,7 @@ class QueryThread(QThread):
     def run(self):
         query = Query(api_key=self.endpoint_api_key,
                       base_url=self.endpoint_url,
-                      debug=False)
+                      debug=True)
 
         query.execute(
             prompt=f"{self.user_input}. This map of UI elements specifies what view has what button and what the buttons are leading to: [{self.context_var}]")
@@ -27,8 +27,8 @@ class ChatDialog(QDialog):
 
         self.program_option_mode = None
 
-        self.graph = GraphRetriever(n4j_uri, n4j_auth, n4j_db_name)
-        self.graph.test_connectivity()
+        self.pathfinder = Pathfinder(n4j_uri, n4j_auth, n4j_db_name, "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")
+        self.pathfinder.test_connectivity()
 
         self.endpoint_url = endpoint_url
         self.endpoint_api_key = endpoint_api_key
@@ -106,7 +106,7 @@ class ChatDialog(QDialog):
         def on_submit():
             if self.program_option_mode == "Action":
                 user_input = user_input_widget.text()
-                context_var = self.graph.get_ui_context()
+                context_var = self.pathfinder.get_ui_path(user_input)
                 query_thread = QueryThread(endpoint_api_key=self.endpoint_api_key,
                                            endpoint_url=self.endpoint_url,
                                            user_input=user_input,
