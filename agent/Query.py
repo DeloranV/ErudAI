@@ -129,7 +129,6 @@ class Query:
 
         assert "Action:" in text
         action_str = text.split("Action:")[-1]
-        print(action_str)
 
         if "type(content" in action_str:
             def escape_quotes(match):

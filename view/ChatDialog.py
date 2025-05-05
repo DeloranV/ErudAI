@@ -116,7 +116,7 @@ class ChatDialog(QDialog):
                 self.temp_thread_container.append(query_thread)
                 self.showMinimized()
 
-                if query_thread.isFinished(): self.showMaximized()
+                query_thread.finished.connect(self.thread_callback)
 
         send_button.clicked.connect(on_submit)
 
@@ -139,3 +139,6 @@ class ChatDialog(QDialog):
 
         program_option_button_message.toggled.connect(update_selection_buttons)
         program_option_button_action.toggled.connect(update_selection_buttons)
+
+    def thread_callback(self):
+        self.showMaximized()
