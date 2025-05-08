@@ -3,6 +3,8 @@ from time import sleep
 import openai
 import datetime
 import time
+
+import pyautogui
 from openai import OpenAI
 import re
 import ast
@@ -92,37 +94,41 @@ class Query:
             return None
 
     def _parse_to_pyautogui(self, response):
-        action_dict = response
-        action_type = action_dict.get("action_type")
-        action_inputs = action_dict.get("action_inputs", {})
+        try:
+            action_dict = response
+            action_type = action_dict.get("action_type")
+            action_inputs = action_dict.get("action_inputs", {})
 
-        if action_type in ["click"]:
-            start_box = action_inputs.get("start_box")
+            if action_type in ["click"]:
+                start_box = action_inputs.get("start_box")
 
-            x2, y2 = 0, 0
-            if len(start_box) == 2:
-                x1, y1 = start_box
-                x2 = round(int(x1) * 1280 / 1000)
-                y2 = round(int(y1) * 720 / 1000)
+                x2, y2 = 0, 0
+                if len(start_box) == 2:
+                    x1, y1 = start_box
+                    x2 = round(int(x1) * 1280 / 1000)
+                    y2 = round(int(y1) * 720 / 1000)
 
-            self.action_performer.perform_click([x2, y2])
-            return 1
-
-        if action_type == "type":
-            content = action_inputs.get("content", "")
-            stripped_content = content
-
-            if content.endswith("\n") or content.endswith("\\n"):
-                stripped_content = stripped_content.rstrip("\\n").rstrip("\n")
-
-            if content:
-                self.action_performer.perform_input(stripped_content)
+                self.action_performer.perform_click([x2, y2])
                 return 1
-                # if content.endswith("\n") or content.endswith("\\n"):
-                #     pyautogui.press("enter")
 
-        if action_type == "finished":
-            return None
+            if action_type == "type":
+                content = action_inputs.get("content", "")
+                stripped_content = content
+
+                if content.endswith("\n") or content.endswith("\\n"):
+                    stripped_content = stripped_content.rstrip("\\n").rstrip("\n")
+
+                if content:
+                    self.action_performer.perform_input(stripped_content)
+                    return 1
+                    # if content.endswith("\n") or content.endswith("\\n"):
+                    #     pyautogui.press("enter")
+
+            if action_type == "finished":
+                return None
+
+        except pyautogui.FailSafeException as e:
+            print("Failsafe triggered")
 
     def _parse_to_structure_output(self, text):
         text = text.strip()
