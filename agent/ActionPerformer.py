@@ -12,7 +12,8 @@ class ActionPerformer:
         pyautogui.moveTo(*coordinates)
 
     def perform_click(self, coordinates: list) -> None:
-        pyautogui.click(*coordinates)
+        pyautogui.moveTo(*coordinates, duration=0.25)
+        pyautogui.click()
 
     def perform_input(self, content: str):
         pyautogui.write(content)
