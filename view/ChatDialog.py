@@ -1,5 +1,9 @@
+import pyautogui
+
 from agent import Query
 from graph import Pathfinder
+
+from pyautogui import size
 
 from PySide6.QtWidgets import QDialog, QComboBox, QVBoxLayout, QLineEdit, QLabel, QListWidget, QPushButton, QHBoxLayout, QRadioButton
 from PySide6.QtCore import Qt, QThread
@@ -142,3 +146,6 @@ class ChatDialog(QDialog):
 
     def thread_callback(self):
         self.showMaximized()
+        centerX = size()[0]/2.5
+        centerY = size()[1]/3
+        self.move(centerX, centerY)
