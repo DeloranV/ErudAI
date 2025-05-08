@@ -1,8 +1,6 @@
 import os
 from PySide6.QtWidgets import QApplication
 from view import ChatDialog
-from agent import ActionPerformer, Query
-from rag import GraphRetriever
 
 if __name__ == "__main__":
 
