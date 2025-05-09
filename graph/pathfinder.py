@@ -12,12 +12,12 @@ class Pathfinder:
 
     def get_all_nodes(self):
         with self.driver.session(database=self.DB_NAME) as session:
-            result = session.run("MATCH (n) RETURN n")
+            result = session.run("MATCH (n)-[r]->(v) RETURN n.name, type(r), v.name")
 
             context_var = ""
             for record in result:
-                context_var += " ".join([record['n']['name'], "\n"])
-
+                context_var += " ".join([record.get('n.name'), record.get('type(r)'), record.get('v.name'), "\n"])
+                print(context_var)
             return context_var
 
     def generate_path_query(self, start_node, end_node):
@@ -49,3 +49,4 @@ class Pathfinder:
                 context_var += " ".join([nodei['name'], nodei['type'], reli, nodei1['name'], nodei1['type'], "\n"])
 
         return context_var
+
