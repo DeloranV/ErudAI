@@ -2,7 +2,7 @@ import pyautogui
 
 class ActionPerformer:
 
-    def perform_movement(self, coordinates: list) -> None:
+    def perform_movement(self, coordinates: list, logger = None) -> None:
         """
         Moves a user mouse to the specified coordinates
 
