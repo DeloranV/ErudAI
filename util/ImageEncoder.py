@@ -2,8 +2,8 @@ import base64
 from io import BytesIO
 
 class ImageEncoder:
-
-    def encode(self, source: BytesIO) -> str:
+# NO STATE - STATIC METHOD
+    def encode(self, source: BytesIO, logger = None) -> str:
         """
         Method for encoding a given image
 
@@ -12,5 +12,10 @@ class ImageEncoder:
         Args:
             source - Source image contained in a BytesIO buffer
         """
+
         encoded = base64.b64encode(source.getvalue()).decode("utf-8")
+
+        if logger and logger.log_encoded_image is True:
+            logger.log_encoded_img_data(str(encoded))
+
         return encoded

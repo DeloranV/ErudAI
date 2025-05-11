@@ -1,11 +1,10 @@
 from time import sleep
 
-import openai
 import datetime
 import time
 
 import pyautogui
-from openai import OpenAI
+from openai import OpenAI, APIStatusError
 import re
 import ast
 
@@ -17,27 +16,22 @@ class Query:
     def __init__(self, api_key: str,
                  base_url: str = "https://openrouter.ai/api/v1",
                  multistep: bool=True,
-                 debug: bool=False):
+                 logger = None):
 
         self.api_key = api_key
         self.base_url = base_url
         self.multistep = multistep
-        self.debug = debug
+        self.logger = logger
 
         self.image_encoder = ImageEncoder()
         self.snapshotter = Snapshotter()
         self.action_performer = ActionPerformer()
 
-        if debug:
-            self.log_name = f"logs/LOG_{time.time()}.txt"
-            with open(self.log_name, "x") as log_file:
-                log_file.write(f"LOG FILE FROM {datetime.datetime.now().isoformat()}\n")
-
     def execute(self, prompt: str):
         sleep(1)    # FOR HIDING CHAT WINDOW
         if self.multistep:
             while True: # DO-WHILE LOOP CONFORMING WITH PEP
-                encoded = self.image_encoder.encode(self.snapshotter.snapshot())
+                encoded = self.image_encoder.encode(self.snapshotter.snapshot(self.logger), logger=self.logger)
                 result = self._send(prompt=prompt, encoded_image=encoded)
 
                 if result is None:
@@ -243,9 +237,8 @@ class Query:
             result = completion.choices[0].message.content
             thought = result.split("Thought: ")[0]
 
-            if self.debug:
-                with open(self.log_name, 'a') as log_file:
-                    log_file.write(f"<response>: {result}\n")
+            if self.logger:
+                self.logger.log_text_data("response", result)
 
             if "wait" in result:
                 return "wait", None
@@ -253,11 +246,9 @@ class Query:
             structured = self._parse_to_structure_output(result)
             return self._parse_to_pyautogui(structured)
 
-        except openai.APIStatusError as e:
-            print(e)
+        except APIStatusError as e:
+            print("api error", e)
 
         finally:
-            if self.debug:
-                with open(self.log_name, 'a') as log_file:
-                    log_file.write(f"<prompt>: {prompt}\n")
-                    #log_file.write(f"Encoded image: {encoded_image}\n")
+            if self.logger:
+                self.logger.log_text_data("prompt", prompt)

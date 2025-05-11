@@ -1,11 +1,13 @@
 import neo4j
 from .planner import Planner
+from util import Logger
 
 class Pathfinder:
-    def __init__(self, uri: str, auth: tuple[str, str], db_name: str, openAI_api):
+    def __init__(self, uri: str, auth: tuple[str, str], db_name: str, openAI_api, logger = None):
         self.driver = neo4j.GraphDatabase.driver(uri, auth=auth)
         self.DB_NAME = db_name
         self.planner = Planner(openAI_api)
+        self.logger = logger
 
     def test_connectivity(self):
         self.driver.verify_connectivity()
@@ -17,7 +19,6 @@ class Pathfinder:
             context_var = ""
             for record in result:
                 context_var += " ".join([record.get('n.name'), record.get('type(r)'), record.get('v.name'), "\n"])
-                print(context_var)
             return context_var
 
     def generate_path_query(self, start_node, end_node):
@@ -43,10 +44,20 @@ class Pathfinder:
 
             for i in range(len(relationships)):
                 nodei = nodes[i]
+                if 'type' not in nodei:
+                    nodei_type = ""
+                else:
+                    nodei_type = nodei['type']
+                # TODO REFACTOR THIS TRASH
                 reli = relationships[i].type
-                nodei1 = nodes[i + 1]
 
-                context_var += " ".join([nodei['name'], nodei['type'], reli, nodei1['name'], nodei1['type'], "\n"])
+                nodei1 = nodes[i + 1]
+                if 'type' not in nodei1:
+                    nodei1_type = ""
+                else:
+                    nodei1_type = nodei1['type']
+
+                context_var += " ".join([nodei['name'], nodei_type, reli, nodei1['name'], nodei1_type, "\n"])
 
         return context_var
 
