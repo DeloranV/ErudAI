@@ -1,14 +1,9 @@
 import pyautogui
 from io import BytesIO
 
-class Snapshotter():
-# NO STATE - STATIC METHOD
-    def snapshot(self, logger = None) -> BytesIO:
-        """
-        Method for taking a screenshot from the user screen and saving it into a BytesIO buffer
-
-        Returns the buffer containing the screenshot
-        """
+class Snapshotter:
+    @staticmethod
+    def snapshot(logger = None) -> BytesIO:
         screenshot = pyautogui.screenshot()
         snapshot = BytesIO()
         screenshot.save(snapshot, format="PNG")

@@ -1,37 +1,27 @@
 from time import sleep
-
-import datetime
-import time
-
 import pyautogui
 from openai import OpenAI, APIStatusError
 import re
 import ast
-
 from agent import ActionPerformer
-
 from util import ImageEncoder, Snapshotter
 
 class Query:
-    def __init__(self, api_key: str,
+    def __init__(self,
+                 api_key: str,
                  base_url: str = "https://openrouter.ai/api/v1",
                  multistep: bool=True,
                  logger = None):
-
         self.api_key = api_key
         self.base_url = base_url
         self.multistep = multistep
         self.logger = logger
 
-        self.image_encoder = ImageEncoder()
-        self.snapshotter = Snapshotter()
-        self.action_performer = ActionPerformer()
-
     def execute(self, prompt: str):
         sleep(1)    # FOR HIDING CHAT WINDOW
         if self.multistep:
             while True: # DO-WHILE LOOP CONFORMING WITH PEP
-                encoded = self.image_encoder.encode(self.snapshotter.snapshot(self.logger), logger=self.logger)
+                encoded = ImageEncoder.encode(Snapshotter.snapshot(self.logger), logger=self.logger)
                 result = self._send(prompt=prompt, encoded_image=encoded)
 
                 if result is None:
@@ -44,11 +34,13 @@ class Query:
         )
         return client
 
-    def _escape_single_quotes(self, text):
+    @staticmethod
+    def _escape_single_quotes(text):
         pattern = r"(?<!\\)'"
         return re.sub(pattern, r"\\'", text)
 
-    def _parse_action(self, action_str):
+    @staticmethod
+    def _parse_action(action_str):
         try:
             node = ast.parse(action_str, mode='eval')
 
@@ -87,7 +79,8 @@ class Query:
             print(f"Failed to parse action '{action_str}': {e}")
             return None
 
-    def _parse_to_pyautogui(self, response):
+    @staticmethod
+    def _parse_to_pyautogui(response):
         try:
             action_dict = response
             action_type = action_dict.get("action_type")
@@ -102,7 +95,7 @@ class Query:
                     x2 = round(int(x1) * 1280 / 1000)
                     y2 = round(int(y1) * 720 / 1000)
 
-                self.action_performer.perform_click([x2, y2])
+                ActionPerformer.perform_click([x2, y2])
                 return 1
 
             if action_type == "type":
@@ -113,7 +106,7 @@ class Query:
                     stripped_content = stripped_content.rstrip("\\n").rstrip("\n")
 
                 if content:
-                    self.action_performer.perform_input(stripped_content)
+                    ActionPerformer.perform_input(stripped_content)
                     return 1
                     # if content.endswith("\n") or content.endswith("\\n"):
                     #     pyautogui.press("enter")
@@ -121,10 +114,14 @@ class Query:
             if action_type == "finished":
                 return None
 
-        except pyautogui.FailSafeException as e:
-            print("Failsafe triggered")
+            return None
 
-    def _parse_to_structure_output(self, text):
+        except pyautogui.FailSafeException:
+            print("Failsafe triggered")
+            return None
+
+    @staticmethod
+    def _parse_to_structure_output(text):
         text = text.strip()
 
         assert "Action:" in text
@@ -132,16 +129,16 @@ class Query:
 
         if "type(content" in action_str:
             def escape_quotes(match):
-                content = match.group(1)
-                return content
+                content_ = match.group(1)
+                return content_
 
             pattern = r"type\(content='(.*?)'\)"
             content = re.sub(pattern, escape_quotes, action_str)
 
-            action_str = self._escape_single_quotes(content)
+            action_str = Query._escape_single_quotes(content)
             action_str = "type(content='" + action_str + "')"
 
-        action_dict = self._parse_action(action_str.replace("\n", "\\n").lstrip())
+        action_dict = Query._parse_action(action_str.replace("\n", "\\n").lstrip())
 
         action_type = action_dict["function"]
         params = action_dict["args"]
@@ -165,7 +162,7 @@ class Query:
         }
         return action
 
-    def _send(self, prompt: str, encoded_image: str) -> tuple:
+    def _send(self, prompt: str, encoded_image: str):
         """
         Sends the request to the model on behalf of the user
         Returns the coordinates of the queried element
@@ -173,8 +170,7 @@ class Query:
             prompt - Prompt query to send to the model
             encoded_image - Encoded snapshot given in the form of a string
         """
-
-        COMPUTER_USE_PROMPT = f"""
+        computer_use_prompt = f"""
         You are a GUI agent. You are given a task, with screenshots. You need to perform the next action to complete the task.
         
         ## Output Format
@@ -213,7 +209,7 @@ class Query:
                         "content": [
                             {
                                 "type": "text",
-                                "text": COMPUTER_USE_PROMPT
+                                "text": computer_use_prompt
                             },
                             {
                                 "type": "image_url",
@@ -235,7 +231,6 @@ class Query:
             )
 
             result = completion.choices[0].message.content
-            thought = result.split("Thought: ")[0]
 
             if self.logger:
                 self.logger.log_text_data("response", result)
@@ -243,11 +238,12 @@ class Query:
             if "wait" in result:
                 return "wait", None
 
-            structured = self._parse_to_structure_output(result)
-            return self._parse_to_pyautogui(structured)
+            structured = Query._parse_to_structure_output(result)
+            return Query._parse_to_pyautogui(structured)
 
         except APIStatusError as e:
             print("api error", e)
+            return None
 
         finally:
             if self.logger:

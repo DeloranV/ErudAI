@@ -1,12 +1,16 @@
 import neo4j
 from .planner import Planner
-from util import Logger
 
 class Pathfinder:
-    def __init__(self, uri: str, auth: tuple[str, str], db_name: str, openAI_api, logger = None):
+    def __init__(self,
+                 uri: str,
+                 auth: tuple[str, str],
+                 db_name: str,
+                 openai_api,
+                 logger = None):
         self.driver = neo4j.GraphDatabase.driver(uri, auth=auth)
         self.DB_NAME = db_name
-        self.planner = Planner(openAI_api)
+        self.planner = Planner(openai_api)
         self.logger = logger
 
     def test_connectivity(self):
@@ -15,28 +19,26 @@ class Pathfinder:
     def get_all_nodes(self):
         with self.driver.session(database=self.DB_NAME) as session:
             result = session.run("MATCH (n)-[r]->(v) RETURN n.name, type(r), v.name")
-
             context_var = ""
             for record in result:
                 context_var += " ".join([record.get('n.name'), record.get('type(r)'), record.get('v.name'), "\n"])
             return context_var
 
-    def generate_path_query(self, start_node, end_node):
+    @staticmethod
+    def generate_path_query(start_node, end_node):
         path_query = f"""
                 MATCH p = SHORTEST 1 ({{name: '{start_node}'}})-->+({{name: '{end_node}'}})
                 RETURN p
                 """
-
         return path_query
 
     def get_ui_path(self, user_prompt) -> str:
         context_var = ""
         start_end = self.planner.plan_route(user_prompt, self.get_all_nodes())
-        path_query = self.generate_path_query(start_end['start_node'], start_end['end_node'])
+        path_query = Pathfinder.generate_path_query(start_end['start_node'], start_end['end_node'])
 
         with self.driver.session(database=self.DB_NAME) as session:
             result = session.run(path_query)
-
             for record in result:
                 path = record['p']
                 nodes = path.nodes
