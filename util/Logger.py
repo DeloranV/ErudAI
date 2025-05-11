@@ -1,7 +1,6 @@
-from pathlib import Path, PurePath
+from pathlib import Path
 import time, datetime
 import os
-import pyautogui
 
 class Logger:
     def __init__(self,
@@ -17,7 +16,6 @@ class Logger:
 
         if not log_directory.exists():
             os.mkdir(log_directory)
-            # log_directory.open('w').write(f"LOG FILE FROM {datetime.datetime.now().isoformat()}\n")
 
         if not self.log_file.exists():
             open(self.log_file, 'x').close()

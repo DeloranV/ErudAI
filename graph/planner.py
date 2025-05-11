@@ -1,12 +1,9 @@
 import json
-from venv import logger
-
 from openai import OpenAI
-from util import Logger
 
 class Planner:
-    def __init__(self, openAI_api: str, logger = None):
-        self.openAI_api = openAI_api
+    def __init__(self, openai_api: str, logger = None):
+        self.openAI_api = openai_api
         self.logger = logger
 
     def plan_route(self, user_prompt, database_nodes):
@@ -32,7 +29,6 @@ class Planner:
             {user_prompt}
             """
         )
-
         if self.logger:
             self.logger.log_text_data("PLANNER-output-nodes", response.output_text)
 
