@@ -33,8 +33,9 @@ class ChatDialog(QDialog):
                  n4j_uri: str,
                  n4j_auth: tuple[str, str],
                  n4j_db_name: str,
-                 endpoint_url: str,
                  endpoint_api_key: str,
+                 openai_api_key: str,
+                 endpoint_url: str = "https://openrouter.ai/api/v1",
                  parent=None):
         super(ChatDialog, self).__init__(parent)
         self.program_option_mode = None
@@ -42,14 +43,14 @@ class ChatDialog(QDialog):
         if self.debug is True:
             self.logger = Logger(log_snapshot=True, log_encoded_image=True)
 
-        self.pathfinder = Pathfinder(n4j_uri, n4j_auth, n4j_db_name, "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")
+        self.pathfinder = Pathfinder(n4j_uri, n4j_auth, n4j_db_name, openai_api_key)
         self.pathfinder.test_connectivity()
 
         self.endpoint_url = endpoint_url
         self.endpoint_api_key = endpoint_api_key
 
         # THREAD NEEDS TO BE IN A CONTAINER OR AS A CLASS MEMBER TO NOT GO OUT OF SCOPE
-        self.temp_thread_container = [] # TODO MAKE IT NICER - CLASS VARIABLE INSTEAD OF CONTAINER
+        self.temp_thread_container = [] # TODO
 
         #LAYOUT DECLARATION
         root_layout = QVBoxLayout(self)
