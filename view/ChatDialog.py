@@ -1,34 +1,49 @@
 from agent import Query
-from rag import GraphRetriever
-
-from PySide6.QtWidgets import QDialog, QComboBox, QVBoxLayout, QHBoxLayout, QLineEdit, QLabel, QTableWidget, QListWidget, QPushButton, QHBoxLayout, QRadioButton, QButtonGroup
+from graph import Pathfinder
+from pyautogui import size
+from PySide6.QtWidgets import QDialog, QComboBox, QVBoxLayout, QLineEdit, QLabel, QListWidget, QPushButton, QHBoxLayout, QRadioButton
 from PySide6.QtCore import Qt, QThread
+from util import Logger
 
 class QueryThread(QThread):
-    def __init__(self, endpoint_api_key, endpoint_url, user_input, context_var):
+    def __init__(self,
+                 endpoint_api_key,
+                 endpoint_url,
+                 user_input,
+                 context_var,
+                 logger = None):
         super().__init__()
         self.endpoint_api_key = endpoint_api_key
         self.endpoint_url = endpoint_url
         self.user_input = user_input
         self.context_var = context_var
+        self.logger = logger
 
     def run(self):
         query = Query(api_key=self.endpoint_api_key,
                       base_url=self.endpoint_url,
-                      debug=True)
+                      logger=self.logger)
 
         query.execute(
             prompt=f"{self.user_input}. This map of UI elements specifies what view has what button and what the buttons are leading to: [{self.context_var}]")
 
 class ChatDialog(QDialog):
 
-    def __init__(self, n4j_uri: str, n4j_auth: tuple[str, str], n4j_db_name: str, endpoint_url: str, endpoint_api_key: str, parent=None):
+    def __init__(self,
+                 n4j_uri: str,
+                 n4j_auth: tuple[str, str],
+                 n4j_db_name: str,
+                 endpoint_url: str,
+                 endpoint_api_key: str,
+                 parent=None):
         super(ChatDialog, self).__init__(parent)
-
         self.program_option_mode = None
+        self.debug = True
+        if self.debug is True:
+            self.logger = Logger(log_snapshot=True, log_encoded_image=True)
 
-        self.graph = GraphRetriever(n4j_uri, n4j_auth, n4j_db_name)
-        self.graph.test_connectivity()
+        self.pathfinder = Pathfinder(n4j_uri, n4j_auth, n4j_db_name, "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")
+        self.pathfinder.test_connectivity()
 
         self.endpoint_url = endpoint_url
         self.endpoint_api_key = endpoint_api_key
@@ -44,27 +59,21 @@ class ChatDialog(QDialog):
         bottom_upper_layout = QHBoxLayout()
         bottom_lower_layout = QHBoxLayout()
 
-
         # PROGRAM NAME LABEL
         program_name = QLabel("ErudAI")
-        program_name.setAlignment(Qt.AlignCenter)
-        program_name_layout.addWidget(program_name, alignment=Qt.AlignCenter)
-
+        program_name.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        program_name_layout.addWidget(program_name, alignment=Qt.AlignmentFlag.AlignCenter)
 
         # CHAT BOX
         chat_box = QListWidget()
         chat_box_layout.addWidget(chat_box)
 
-
         # USER INPUT
         user_input_widget = QLineEdit()
-
 
         # LIST
         program_option_list = QComboBox()
         program_option_list.addItems(["Message", "Action"])
-
-
 
         #RADIO BUTTONS
         program_option_layout = QHBoxLayout()
@@ -73,20 +82,12 @@ class ChatDialog(QDialog):
         program_option_layout.addWidget(program_option_button_message)
         program_option_layout.addWidget(program_option_button_action)
 
-
         #USER INPUT ADD
         bottom_upper_layout.addWidget(user_input_widget)
         bottom_upper_layout.addSpacing(10)
 
-        """
-        # LIST ADD
-        bottom_upper_layout.addWidget(program_option_list)
-        """
-
         # RADIO BUTTONS ADD
         bottom_upper_layout.addLayout(program_option_layout)
-
-
 
         #SEND BUTTON
         send_button = QPushButton("Send")
@@ -95,7 +96,6 @@ class ChatDialog(QDialog):
         #BOTTOM LAYOUT MERGE
         bottom_layout.addLayout(bottom_upper_layout)
         bottom_layout.addLayout(bottom_lower_layout)
-
 
         #ROOT LAYOUT
         root_layout.addLayout(program_name_layout)
@@ -106,26 +106,20 @@ class ChatDialog(QDialog):
         def on_submit():
             if self.program_option_mode == "Action":
                 user_input = user_input_widget.text()
-                context_var = self.graph.get_ui_context()
+                context_var = self.pathfinder.get_ui_path(user_input)
                 query_thread = QueryThread(endpoint_api_key=self.endpoint_api_key,
                                            endpoint_url=self.endpoint_url,
                                            user_input=user_input,
-                                           context_var=context_var)
+                                           context_var=context_var,
+                                           logger=self.logger)
 
                 query_thread.start()
                 self.temp_thread_container.append(query_thread)
                 self.showMinimized()
 
-        send_button.clicked.connect(on_submit)
+                query_thread.finished.connect(self.thread_callback)
 
-        """
-        #RETURN LIST OPTION
-        def update_selection_list(index):
-            global program_option_mode
-            selected_option = program_option_list.currentText()
-            print(selected_option)
-        program_option_list.currentIndexChanged.connect(update_selection_list)
-        """
+        send_button.clicked.connect(on_submit)
 
         #RETURN CHECKED RADIO BUTTON OPTION
         def update_selection_buttons():
@@ -137,3 +131,9 @@ class ChatDialog(QDialog):
 
         program_option_button_message.toggled.connect(update_selection_buttons)
         program_option_button_action.toggled.connect(update_selection_buttons)
+
+    def thread_callback(self):
+        self.showMaximized()
+        center_x = size()[0]/2.5
+        center_y = size()[1]/3
+        self.move(center_x, center_y)

@@ -1,15 +1,11 @@
 import pyautogui
 
 class ActionPerformer:
+    @staticmethod
+    def perform_click(coordinates: list) -> None:
+        pyautogui.moveTo(*coordinates, duration=0.25)
+        pyautogui.click()
 
-    def performMovement(self, coordinates: list) -> None:
-        """
-        Moves a user mouse to the specified coordinates
-
-        Args:
-            coordinates - List of coordinates in the form of [x: int, y: int]
-        """
-        pyautogui.moveTo(*coordinates)
-
-    def performClick(self, coordinates: list) -> None:
-        pyautogui.click(*coordinates)
+    @staticmethod
+    def perform_input(content: str):
+        pyautogui.write(content)
