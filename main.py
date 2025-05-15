@@ -8,14 +8,18 @@ if __name__ == "__main__":
 
     app = QApplication()
 
-    n4j_auth_data = open("n4j_auth_data", "r").read().split("\n")
-    hf_api_key = open("hf_api_key", "r").read()
+    n4j_auth_data = open("api_keys/n4j_auth_data", "r").read().split("\n")
+    hf_auth_data = open("api_keys/hf_auth_data", "r").read().split("\n")
+    hf_aws_endpoint = hf_auth_data[0]
+    hf_api_key = hf_auth_data[1]
+    openai_api_key = open("api_keys/openai_api_key", "r").read()
 
     chat_dialog = ChatDialog(n4j_uri=n4j_auth_data[0],
                              n4j_auth=(n4j_auth_data[1], n4j_auth_data[2]),
                              n4j_db_name="neo4j",
-                             endpoint_url="https://fn7lxcome3tixe20.us-east-1.aws.endpoints.huggingface.cloud/v1/",
-                             endpoint_api_key=hf_api_key
+                             endpoint_url=hf_aws_endpoint,
+                             endpoint_api_key=hf_api_key,
+                             openai_api_key=openai_api_key
                              )
 
     chat_dialog.show()

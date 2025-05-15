@@ -14,7 +14,7 @@ class Planner:
 
         response = client.responses.create(
             model="gpt-4.1",
-            input=f"""Given a list of node names and their relationships in a neo4j database and a user prompt, 
+            input=f"""Given a list of node names, their types and their relationships to other nodes in a neo4j database and a user prompt, 
             determine the starting node and ending node for traversing the graph, which will be used for path finding.
             Respond strictly according to the output format provided below.
         

@@ -1,4 +1,7 @@
-/hf_api_key
+/api_keys/hf_auth_data
 /logs/
-/n4j_auth_data
-/n4j_auth_data
+/api_keys/n4j_auth_data
+/api_keys/n4j_auth_data
+/experimental/
+/api_keys/
+/rag/

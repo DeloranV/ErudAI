@@ -9,7 +9,7 @@ from util import ImageEncoder, Snapshotter
 class Query:
     def __init__(self,
                  api_key: str,
-                 base_url: str = "https://openrouter.ai/api/v1",
+                 base_url: str,
                  multistep: bool=True,
                  logger = None):
         self.api_key = api_key
