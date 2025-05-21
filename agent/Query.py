@@ -92,10 +92,10 @@ class Query:
                 x2, y2 = 0, 0
                 if len(start_box) == 2:
                     x1, y1 = start_box
-                    x2 = round(int(x1) * 1280 / 1000)
-                    y2 = round(int(y1) * 720 / 1000)
+                    #x2 = round(int(x1) * 1280 / 1000)
+                    #y2 = round(int(y1) * 720 / 1000)
 
-                ActionPerformer.perform_click([x2, y2])
+                ActionPerformer.perform_click([int(x1), int(y1)])
                 return 1
 
             if action_type == "type":
@@ -202,7 +202,7 @@ class Query:
             completion = client.chat.completions.create(
                 extra_headers={},
                 extra_body={},
-                model="bytedance-research/ui-tars-72b:free",
+                model="ByteDance-Seed/UI-TARS-1.5-7B",
                 messages=[
                     {
                         "role": "user",

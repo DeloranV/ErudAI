@@ -31,10 +31,10 @@ class ChatDialog(QDialog):
 
     def __init__(self,
                  n4j_uri: str,
-                 n4j_auth: tuple[str, str],
                  n4j_db_name: str,
-                 endpoint_api_key: str,
                  openai_api_key: str,
+                 n4j_auth: tuple[str, str] = None,
+                 endpoint_api_key: str = None,
                  endpoint_url: str = "https://openrouter.ai/api/v1",
                  parent=None):
         super(ChatDialog, self).__init__(parent)
