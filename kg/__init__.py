@@ -1,0 +1,1 @@
+from .KnowledgeBuilder import kg_extractor

@@ -1,63 +1,111 @@
-QMainWindow, QDialog {
-    background: #2C2C2C;
+#ChatDialog {
+    background-color: #1e1e2f;
+    color: #ffffff;
+    font-family: "Segoe UI", sans-serif;
+    font-size: 14px;
 }
 
-QLabel {
-    color: #673AB7;
+#ProgramTitle {
+    font-size: 24px;
     font-weight: bold;
-    font-size: 25px;
+    color: #f5f5f5;
+    margin-bottom: 10px;
 }
 
-QPushButton {
-    background: #673AB7;
-    border-width: 1px;
-    border-style: solid;
+#ChatBox {
+    background-color: #2a2a3d;
+    border: 1px solid #444;
+    padding: 8px;
     border-radius: 10px;
-    padding: 5px;
-    color: #FFFFFF;
+    min-height: 300px;
+    color: #ffffff;
 }
 
-QPushButton:hover {
-    background: #009999;
+QListWidget::item {
+    padding: 10px;
+    border-bottom: 1px solid #444;
 }
 
-QPushButton:pressed {
-    background: #006666;
+QListWidget::item:selected {
+    background-color: #3a3a5a;
 }
 
-QLineEdit{
-    background-color: #444444;
-    border-width: 1px;
-    border-style: solid;
-    border-radius: 10px;
-    padding: 5px;
-}
-
-QListWidget{
-    background: #444444;
-    border-width: 1px;
-    border-style: solid;
-    border-radius: 10px;
-    padding: 5px;
+#UserInput {
+    background-color: #2a2a3d;
+    border: 1px solid #555;
+    padding: 6px;
+    border-radius: 8px;
+    color: #fff;
 }
 
 QRadioButton {
-    color: #FFFFFF;
-}
-
-QRadioButton::indicator {
-    width: 10px;
-    height: 10px;
-    border: 1px solid;
-    border-radius: 15px;
-    background-color: #666666;
+    color: #ccc;
 }
 
 QRadioButton::indicator:checked {
-    border-color: #000000;
-    background-color: #333333;
+    background-color: #4caf50;
+    border: 1px solid #4caf50;
 }
 
-QRadioButton::indicator:hover {
-    border-color: #333333;
+#SendButton, #SettingsButton {
+    background-color: #4caf50;
+    color: white;
+    padding: 8px 16px;
+    border: none;
+    border-radius: 8px;
+}
+
+#SendButton:hover, #SettingsButton:hover {
+    background-color: #45a049;
+}
+
+/* SETTINGS DIALOG STYLES */
+QDialog {
+    background-color: #1e1e2f;
+    color: #ffffff;
+    font-family: "Segoe UI", sans-serif;
+    font-size: 14px;
+}
+
+QLabel {
+    color: #dddddd;
+    font-weight: normal;
+}
+
+QLineEdit {
+    background-color: #2a2a3d;
+    border: 1px solid #555;
+    padding: 6px;
+    border-radius: 6px;
+    color: #ffffff;
+}
+
+QRadioButton {
+    color: #cccccc;
+}
+
+QRadioButton::indicator {
+    width: 16px;
+    height: 16px;
+    border-radius: 8px;
+    border: 1px solid #888;
+    background-color: transparent;
+}
+
+QRadioButton::indicator:checked {
+    background-color: #4caf50;
+    border: 1px solid #4caf50;
+    border-radius: 8px;
+}
+
+QPushButton {
+    background-color: #4caf50;
+    color: white;
+    padding: 6px 12px;
+    border: none;
+    border-radius: 6px;
+}
+
+QPushButton:hover {
+    background-color: #45a049;
 }

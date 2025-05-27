@@ -11,11 +11,13 @@ class Query:
                  api_key: str,
                  base_url: str,
                  multistep: bool=True,
+                 scan: bool=False,
                  logger = None):
         self.api_key = api_key
         self.base_url = base_url
         self.multistep = multistep
         self.logger = logger
+        self.scan = scan
 
     def execute(self, prompt: str):
         sleep(1)    # FOR HIDING CHAT WINDOW
@@ -26,6 +28,7 @@ class Query:
 
                 if result is None:
                     return
+
 
     def _create_connection(self) -> OpenAI:
         client = OpenAI(
@@ -96,7 +99,7 @@ class Query:
                     #y2 = round(int(y1) * 720 / 1000)
 
                 ActionPerformer.perform_click([int(x1), int(y1)])
-                return 1
+                return response
 
             if action_type == "type":
                 content = action_inputs.get("content", "")
@@ -107,7 +110,7 @@ class Query:
 
                 if content:
                     ActionPerformer.perform_input(stripped_content)
-                    return 1
+                    return response
                     # if content.endswith("\n") or content.endswith("\\n"):
                     #     pyautogui.press("enter")
 
@@ -220,14 +223,14 @@ class Query:
                         ]
                     }
                 ],
-                # top_p = None,
-                # temperature = None,
-                # max_tokens = 150,
-                # stream = False,
-                # seed = None,
-                # stop = None,
-                # frequency_penalty = None,
-                # presence_penalty = None
+                top_p = None,
+                temperature = None,
+                max_tokens = 150,
+                stream = False,
+                seed = None,
+                stop = None,
+                frequency_penalty = None,
+                presence_penalty = None
             )
 
             result = completion.choices[0].message.content
