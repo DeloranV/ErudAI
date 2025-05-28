@@ -83,7 +83,6 @@ class ChatDialog(QDialog):
 
         # THREAD NEEDS TO BE IN A CONTAINER OR AS A CLASS MEMBER TO NOT GO OUT OF SCOPE
         self.temp_thread_container = [] # TODO
-        self.kg_builder = kg_extractor()
 
         root_layout = QVBoxLayout(self)
         root_layout.setContentsMargins(20, 20, 20, 20)
@@ -100,18 +99,6 @@ class ChatDialog(QDialog):
         self.user_input_widget.setPlaceholderText("Type your message...")
         self.user_input_widget.setObjectName("UserInput")
         input_layout.addWidget(self.user_input_widget)
-
-        # Radio Buttons
-        radio_layout = QVBoxLayout()
-        self.radio_message = QRadioButton("Message")
-        self.radio_action = QRadioButton("Action")
-        self.radio_message.setChecked(True)
-        self.program_option_mode = "Message"
-        self.radio_message.toggled.connect(self.update_selection_buttons)
-        self.radio_action.toggled.connect(self.update_selection_buttons)
-        radio_layout.addWidget(self.radio_message)
-        radio_layout.addWidget(self.radio_action)
-        input_layout.addLayout(radio_layout)
 
         root_layout.addLayout(input_layout)
 
@@ -184,6 +171,7 @@ class ChatDialog(QDialog):
 
     def on_scan_toggle(self):
         try:
+            self.kg_builder = kg_extractor(self.openai_api_key)
             self.showMinimized()
             encoded_image = ImageEncoder.encode(Snapshotter.snapshot())
             self.kg_init_thread = KGInitThread(self.kg_builder, encoded_image)
@@ -197,18 +185,17 @@ class ChatDialog(QDialog):
             user_input = self.user_input_widget.text()
             self.add_chat_message("You", user_input)
             self.pathfinder = Pathfinder(self.n4j_uri, self.n4j_auth, self.n4j_db_name, self.openai_api_key)
-            if self.program_option_mode == "Action":
-                query_thread = QueryThread(endpoint_api_key=self.endpoint_api_key,
-                                           endpoint_url=self.endpoint_url,
-                                           user_input=user_input,
-                                           logger=self.logger,
-                                           pathfinder=self.pathfinder
-                                           )
+            query_thread = QueryThread(endpoint_api_key=self.endpoint_api_key,
+                                       endpoint_url=self.endpoint_url,
+                                       user_input=user_input,
+                                       logger=self.logger,
+                                       pathfinder=self.pathfinder
+                                       )
 
-                query_thread.finished.connect(self.thread_callback)
-                query_thread.start()
-                self.temp_thread_container.append(query_thread)
-                self.showMinimized()
+            query_thread.finished.connect(self.thread_callback)
+            query_thread.start()
+            self.temp_thread_container.append(query_thread)
+            self.showMinimized()
 
         except Exception as e:
             self.add_chat_message("SYSTEM", str(e))

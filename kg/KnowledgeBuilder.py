@@ -18,8 +18,9 @@ driver = neo4j.GraphDatabase.driver(URI)
 # IF USING SPLIT PROMPTS - SEND BOTH ASYNCHRONOUSLY !!!
 
 class kg_extractor:
-    def __init__(self):
+    def __init__(self, openai_api):
         self.node_cache = {"response_json": None, "embedded_json": None}
+        self.openai_api = openai_api
 
     def initialize_cache(self, encoded_image):
         response, embed = self.extract_view(encoded_image)
@@ -59,7 +60,7 @@ class kg_extractor:
         Ignore system tray.
         Replace any non-english characters with english alphabet.
         """
-        client = OpenAI()
+        client = OpenAI(api_key=self.openai_api)
         completion = client.chat.completions.create(
             model="gpt-4.1",
             messages=[
@@ -84,7 +85,7 @@ class kg_extractor:
         response = completion.choices[0].message.content
         responsejs = json.loads(response)[0]
 
-        embed_response = embeddings.create(
+        embed_response = client.embeddings.create(
             input=response,
             model="text-embedding-ada-002"
         )
@@ -187,7 +188,7 @@ class kg_extractor:
         Ignore the UI elements. Take into consideration only useful information.
         Replace any non-english characters with english alphabet.
         """
-        client = OpenAI()
+        client = OpenAI(api_key=self.openai_api)
         completion = client.chat.completions.create(
             model="gpt-4.1",
             messages=[
