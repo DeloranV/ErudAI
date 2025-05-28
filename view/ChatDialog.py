@@ -171,7 +171,7 @@ class ChatDialog(QDialog):
 
     def on_scan_toggle(self):
         try:
-            self.kg_builder = kg_extractor(self.openai_api_key)
+            self.kg_builder = kg_extractor(self.openai_api_key, self.n4j_uri)
             self.showMinimized()
             encoded_image = ImageEncoder.encode(Snapshotter.snapshot())
             self.kg_init_thread = KGInitThread(self.kg_builder, encoded_image)

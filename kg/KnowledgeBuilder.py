@@ -9,18 +9,16 @@ import neo4j
 import json
 from openai import OpenAI, embeddings
 import asyncio
-
-URI = "neo4j://localhost:7687"
 DB_NAME = "neo4j"
-driver = neo4j.GraphDatabase.driver(URI)
 
 # UNIFY INTO ONE PROMPT AND TELL IT TO CREATE TWO SEPARATE JSON'S ? (ONE FOR UI ONE FOR KNOWLEDGE)
 # IF USING SPLIT PROMPTS - SEND BOTH ASYNCHRONOUSLY !!!
 
 class kg_extractor:
-    def __init__(self, openai_api):
+    def __init__(self, openai_api, n4j_uri):
         self.node_cache = {"response_json": None, "embedded_json": None}
         self.openai_api = openai_api
+        self.driver = neo4j.GraphDatabase.driver(n4j_uri)
 
     def initialize_cache(self, encoded_image):
         response, embed = self.extract_view(encoded_image)
@@ -102,7 +100,7 @@ class kg_extractor:
         # }}
 
     def cache_view(self, responsejs, embedding):
-        with driver.session(database=DB_NAME) as session:
+        with self.driver.session(database=DB_NAME) as session:
             query = f'''
             CALL {{
               CALL db.index.vector.queryNodes('viewEmbeddings', 1, {embedding})
@@ -147,7 +145,7 @@ class kg_extractor:
         cached_view_url = cached_json["view_url"]
 
         # Insert new View with embedding
-        with driver.session(database=DB_NAME) as session:
+        with self.driver.session(database=DB_NAME) as session:
             for item in node1['elements']:
                 query = f'''
 
