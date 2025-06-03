@@ -99,7 +99,7 @@ class kg_extractor:
         #  `vector.similarity_function`: 'cosine'
         # }}
 
-    def cache_view(self, responsejs, embedding):
+    def check_existing(self, embedding):
         with self.driver.session(database=DB_NAME) as session:
             query = f'''
             CALL {{
@@ -129,20 +129,29 @@ class kg_extractor:
                         "elements": node_properties.get("elements", [])  # Default to [] if missing
                     }
                     json_format = json.dumps(normalized_properties)
-                    self.node_cache["response_json"] = json.loads(json_format)
-                return
+                return json_format
+            return None
 
-            self.node_cache["response_json"] = responsejs
-            self.node_cache["embedded_json"] = embedding
+    def cache_view(self, response, embed):
+        if self.check_existing(embed):
+            json_format = self.check_existing(embed)
+            self.node_cache["response_json"] = json.loads(json_format)
+
+        self.node_cache["response_json"] = response
+        self.node_cache["embedded_json"] = embed
 
     def GUI_insertion(self, node1, embed1, clicked_button):
         view_name1 = node1['view_name']
         view_url1 = node1['view_url']
 
-        cached_json = self.node_cache["response_json"]
-        cached_embed = self.node_cache["embedded_json"]
-        cached_view_name = cached_json["view_name"]
-        cached_view_url = cached_json["view_url"]
+        if self.check_existing(embed1):
+            print("View already exists")
+            return
+        else:
+            cached_json = self.node_cache["response_json"]
+            cached_embed = self.node_cache["embedded_json"]
+            cached_view_name = cached_json["view_name"]
+            cached_view_url = cached_json["view_url"]
 
         # Insert new View with embedding
         with self.driver.session(database=DB_NAME) as session:
