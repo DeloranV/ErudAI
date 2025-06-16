@@ -6,7 +6,6 @@ import ast
 from agent import ActionPerformer
 from util import ImageEncoder, Snapshotter
 
-
 class Query:
     def __init__(self,
                  api_key: str,
@@ -177,6 +176,7 @@ class Query:
         You are a GUI scanning agent.Your task is to explore software on the screenshot breadth first.You are given a screenshot of current screen. 
         Your task is to click every button which could be a link to a next view.You need to perform the next action to complete the task. 
         If in doubt, go back to the homepage with the Comarch BSS button in top-left.
+        Clickable elements have an icon to the left with adjacent text on the right.
         Do not click the same element more than once.Ignore windows taskbar.Ignore browser UI.Focus only on the website in the browser.
 
         ## Output Format
@@ -208,10 +208,10 @@ class Query:
             completion = client.chat.completions.create(
                 extra_headers={},
                 extra_body={},
-                model="ByteDance-Seed/UI-TARS-1.5-7B",
+                model="OpenGVLab/InternVL3-8B",
                 messages=[
                     {
-                        "role": "user",
+                        "role": "system",
                         "content": [
                             {
                                 "type": "text",

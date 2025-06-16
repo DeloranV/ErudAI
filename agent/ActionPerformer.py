@@ -9,3 +9,7 @@ class ActionPerformer:
     @staticmethod
     def perform_input(content: str):
         pyautogui.write(content)
+
+    @staticmethod
+    def perform_scroll(clicks, x, y):
+        pyautogui.scroll(clicks, x, y)

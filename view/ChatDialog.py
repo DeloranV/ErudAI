@@ -1,7 +1,7 @@
 from pynput import mouse
 from agent import Query
 from graph import Pathfinder
-from pyautogui import size
+from pyautogui import size, sleep
 from PySide6.QtWidgets import QDialog, QComboBox, QVBoxLayout, QLineEdit, QLabel, QListWidget, QPushButton, QHBoxLayout, \
     QRadioButton, QGraphicsOpacityEffect
 from PySide6.QtCore import Qt, QThread, QPropertyAnimation, QEasingCurve
@@ -161,6 +161,7 @@ class ChatDialog(QDialog):
         try:
             clicked_button = self.user_input_widget.text()
             self.showMinimized()
+            sleep(2)
             encoded_img = ImageEncoder.encode(Snapshotter.snapshot())
             scan_thread = ScanThread(self.kg_builder ,clicked_button, encoded_img)
             self.temp_thread_container.append(scan_thread)
@@ -173,6 +174,7 @@ class ChatDialog(QDialog):
         try:
             self.kg_builder = kg_extractor(self.openai_api_key, self.n4j_uri)
             self.showMinimized()
+            sleep(2)
             encoded_image = ImageEncoder.encode(Snapshotter.snapshot())
             self.kg_init_thread = KGInitThread(self.kg_builder, encoded_image)
             self.kg_init_thread.start()

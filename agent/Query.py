@@ -5,6 +5,7 @@ import re
 import ast
 from agent import ActionPerformer
 from util import ImageEncoder, Snapshotter
+import pyautogui
 
 class Query:
     def __init__(self,
@@ -44,6 +45,7 @@ class Query:
 
     @staticmethod
     def _parse_action(action_str):
+
         try:
             node = ast.parse(action_str, mode='eval')
 
@@ -84,6 +86,7 @@ class Query:
 
     @staticmethod
     def _parse_to_pyautogui(response):
+        pyautogui_code = f"import pyautogui\nimport time\n"
         try:
             action_dict = response
             action_type = action_dict.get("action_type")
@@ -100,6 +103,45 @@ class Query:
 
                 ActionPerformer.perform_click([int(x1), int(y1)])
                 return response
+
+            elif action_type == "scroll":
+                # Parsing scroll action
+                start_box = action_inputs.get("start_box")
+                if start_box:
+                    try:
+                        box = ast.literal_eval(start_box) if isinstance(start_box, str) else start_box
+
+                        if isinstance(box, (tuple, list)):
+                            if len(box) == 2:
+                                x, y = box
+                            elif len(box) == 4:
+                                x1, y1, x2, y2 = box
+                                x = round((x1 + x2) / 2)
+                                y = round((y1 + y2) / 2)
+                            else:
+                                raise ValueError("start_box must have 2 or 4 elements")
+                        else:
+                            raise TypeError("start_box must be a tuple or list")
+
+                    except Exception as e:
+                        raise ValueError(f"Invalid start_box format: {start_box} — {e}")
+                else:
+                    x = y = None
+
+                if x == None:
+                    if "up" in direction.lower():
+                        pyautogui.scroll(5)
+                        pyautogui_code += f"\npyautogui.scroll(5)"
+                    elif "down" in direction.lower():
+                        pyautogui.scroll(-5)
+                        pyautogui_code += f"\npyautogui.scroll(-5)"
+                else:
+                    if "up" in direction.lower():
+                        pyautogui.scroll(5, x=x, y=y)
+                        pyautogui_code += f"\npyautogui.scroll(5, x={x}, y={y})"
+                    elif "down" in direction.lower():
+                        pyautogui.scroll(-5, x=x, y=y)
+                        pyautogui_code += f"\npyautogui.scroll(-5, x={x}, y={y})"
 
             if action_type == "type":
                 content = action_inputs.get("content", "")
