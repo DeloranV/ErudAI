@@ -74,8 +74,8 @@ class ChatDialog(QDialog):
         if self.endpoint_api_key == "": self.endpoint_api_key = None
         self.n4j_uri = self.settings_dialog.neo4j_endpoint.text()
         self.n4j_db_name = self.settings_dialog.neo4j_db.text()
-        self.n4j_auth = (self.settings_dialog.aura_username.text(),
-                    self.settings_dialog.aura_api_key.text())
+        self.n4j_auth = (self.settings_dialog.local_username.text(),
+                    self.settings_dialog.local_password.text())
 
         self.openai_api_key = self.settings_dialog.openai_api_key.text()
 
@@ -172,7 +172,7 @@ class ChatDialog(QDialog):
 
     def on_scan_toggle(self):
         try:
-            self.kg_builder = kg_extractor(self.openai_api_key, self.n4j_uri)
+            self.kg_builder = kg_extractor(self.openai_api_key, self.n4j_uri, self.n4j_auth)
             self.showMinimized()
             sleep(2)
             encoded_image = ImageEncoder.encode(Snapshotter.snapshot())

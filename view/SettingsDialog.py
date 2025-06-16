@@ -1,4 +1,7 @@
-from PySide6.QtWidgets import QDialog, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QRadioButton, QPushButton, QButtonGroup, QWidget
+from PySide6.QtWidgets import (
+    QDialog, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QRadioButton,
+    QPushButton, QButtonGroup, QWidget
+)
 import os
 import json
 
@@ -68,6 +71,18 @@ class SettingsDialog(QDialog):
         layout.addWidget(self.aura_api_key_label)
         layout.addWidget(self.aura_api_key)
 
+        # Local Neo4j credentials
+        self.local_username_label = QLabel("Local Neo4j username:")
+        self.local_username = QLineEdit()
+        layout.addWidget(self.local_username_label)
+        layout.addWidget(self.local_username)
+
+        self.local_password_label = QLabel("Local Neo4j password:")
+        self.local_password = QLineEdit()
+        self.local_password.setEchoMode(QLineEdit.Password)
+        layout.addWidget(self.local_password_label)
+        layout.addWidget(self.local_password)
+
         # OpenAI API key
         layout.addWidget(QLabel("OpenAI API key:"))
         self.openai_api_key = QLineEdit()
@@ -124,6 +139,7 @@ class SettingsDialog(QDialog):
         # Connect radio logic
         self.gui_cloud.toggled.connect(self.toggle_gui_api_key)
         self.neo4j_aura.toggled.connect(self.toggle_aura_fields)
+        self.neo4j_local.toggled.connect(self.toggle_aura_fields)
         self.debug_on.toggled.connect(self.toggle_debug_fields)
 
         self.toggle_gui_api_key()
@@ -139,11 +155,18 @@ class SettingsDialog(QDialog):
         self.gui_api_key_label.setVisible(visible)
 
     def toggle_aura_fields(self):
-        visible = self.neo4j_aura.isChecked()
-        self.aura_username.setVisible(visible)
-        self.aura_username_label.setVisible(visible)
-        self.aura_api_key.setVisible(visible)
-        self.aura_api_key_label.setVisible(visible)
+        aura_visible = self.neo4j_aura.isChecked()
+        local_visible = self.neo4j_local.isChecked()
+
+        self.aura_username.setVisible(aura_visible)
+        self.aura_username_label.setVisible(aura_visible)
+        self.aura_api_key.setVisible(aura_visible)
+        self.aura_api_key_label.setVisible(aura_visible)
+
+        self.local_username.setVisible(local_visible)
+        self.local_username_label.setVisible(local_visible)
+        self.local_password.setVisible(local_visible)
+        self.local_password_label.setVisible(local_visible)
 
     def toggle_debug_fields(self):
         visible = self.debug_on.isChecked()
@@ -165,6 +188,8 @@ class SettingsDialog(QDialog):
             "neo4j_deployment": "aura" if self.neo4j_aura.isChecked() else "local",
             "aura_username": self.aura_username.text(),
             "aura_api_key": self.aura_api_key.text(),
+            "local_username": self.local_username.text(),
+            "local_password": self.local_password.text(),
 
             "openai_api_key": self.openai_api_key.text(),
 
@@ -192,6 +217,8 @@ class SettingsDialog(QDialog):
         (self.neo4j_aura if data.get("neo4j_deployment") == "aura" else self.neo4j_local).setChecked(True)
         self.aura_username.setText(data.get("aura_username", ""))
         self.aura_api_key.setText(data.get("aura_api_key", ""))
+        self.local_username.setText(data.get("local_username", ""))
+        self.local_password.setText(data.get("local_password", ""))
 
         self.openai_api_key.setText(data.get("openai_api_key", ""))
 
@@ -199,8 +226,6 @@ class SettingsDialog(QDialog):
         (self.log_snapshots if data.get("log_snapshots") == "on" else self.log_snapshots_off).setChecked(True)
         (self.log_encoded if data.get("log_encoded") == "on" else self.log_encoded_off).setChecked(True)
 
-        # Re-apply visibility logic
         self.toggle_gui_api_key()
         self.toggle_aura_fields()
         self.toggle_debug_fields()
-

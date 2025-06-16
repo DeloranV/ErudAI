@@ -15,10 +15,10 @@ DB_NAME = "neo4j"
 # IF USING SPLIT PROMPTS - SEND BOTH ASYNCHRONOUSLY !!!
 
 class kg_extractor:
-    def __init__(self, openai_api, n4j_uri):
+    def __init__(self, openai_api, n4j_uri, n4j_auth):
         self.node_cache = {"response_json": None, "embedded_json": None}
         self.openai_api = openai_api
-        self.driver = neo4j.GraphDatabase.driver(n4j_uri)
+        self.driver = neo4j.GraphDatabase.driver(n4j_uri, auth=n4j_auth)
 
     def initialize_cache(self, encoded_image):
         response, embed = self.extract_view(encoded_image)
