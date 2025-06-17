@@ -11,11 +11,12 @@ from kg.KnowledgeBuilder import kg_extractor
 from util import Snapshotter, ImageEncoder
 
 class KGInitThread(QThread):
+    error_occurred = Signal(str)
+
     def __init__(self, kg_builder, image):
         super().__init__()
         self.kg_builder = kg_builder
         self.image = image
-        self.error_occurred = Signal(str)
 
     def run(self):
         try:
@@ -24,12 +25,13 @@ class KGInitThread(QThread):
             self.error_occurred.emit(str(e))
 
 class ScanThread(QThread):
+    error_occurred = Signal(str)
+
     def __init__(self, kg_builder, clicked_button, encoded_image):
         super().__init__()
         self.kg_builder = kg_builder
         self.clicked_button = clicked_button
         self.encoded_image = encoded_image
-        self.error_occurred = Signal(str)
 
     def run(self):
         try:
@@ -38,6 +40,8 @@ class ScanThread(QThread):
             self.error_occurred.emit(str(e))
 
 class QueryThread(QThread):
+    error_occurred = Signal(str)
+
     def __init__(self,
                  endpoint_api_key,
                  endpoint_url,
@@ -50,7 +54,6 @@ class QueryThread(QThread):
         self.user_input = user_input
         self.logger = logger
         self.pathfinder = pathfinder
-        self.error_occurred = Signal(str)
 
     def run(self):
         try:

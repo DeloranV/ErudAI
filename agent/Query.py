@@ -286,10 +286,6 @@ class Query:
             structured = Query._parse_to_structure_output(result)
             return Query._parse_to_pyautogui(structured)
 
-        except APIStatusError as e:
-            print("api error", e)
-            return None
-
         finally:
             if self.logger:
                 self.logger.log_text_data("prompt", prompt)
