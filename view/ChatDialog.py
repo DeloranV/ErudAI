@@ -4,7 +4,7 @@ from graph import Pathfinder
 from pyautogui import size, sleep
 from PySide6.QtWidgets import QDialog, QComboBox, QVBoxLayout, QLineEdit, QLabel, QListWidget, QPushButton, QHBoxLayout, \
     QRadioButton, QGraphicsOpacityEffect
-from PySide6.QtCore import Qt, QThread, QPropertyAnimation, QEasingCurve
+from PySide6.QtCore import Qt, QThread, QPropertyAnimation, QEasingCurve, Signal
 from util import Logger
 from .SettingsDialog import SettingsDialog
 from kg.KnowledgeBuilder import kg_extractor
@@ -15,9 +15,13 @@ class KGInitThread(QThread):
         super().__init__()
         self.kg_builder = kg_builder
         self.image = image
+        self.error_occurred = Signal(str)
 
     def run(self):
-        self.kg_builder.initialize_cache(self.image)
+        try:
+            self.kg_builder.initialize_cache(self.image)
+        except Exception as e:
+            self.error_occurred.emit(str(e))
 
 class ScanThread(QThread):
     def __init__(self, kg_builder, clicked_button, encoded_image):
@@ -25,9 +29,13 @@ class ScanThread(QThread):
         self.kg_builder = kg_builder
         self.clicked_button = clicked_button
         self.encoded_image = encoded_image
+        self.error_occurred = Signal(str)
 
     def run(self):
-        self.kg_builder.extract_GUI_schema(self.clicked_button, self.encoded_image)
+        try:
+            self.kg_builder.extract_GUI_schema(self.clicked_button, self.encoded_image)
+        except Exception as e:
+            self.error_occurred.emit(str(e))
 
 class QueryThread(QThread):
     def __init__(self,
@@ -42,22 +50,26 @@ class QueryThread(QThread):
         self.user_input = user_input
         self.logger = logger
         self.pathfinder = pathfinder
+        self.error_occurred = Signal(str)
 
     def run(self):
-        self.context_var = self.pathfinder.get_ui_path(self.user_input)
-        query = Query(api_key=self.endpoint_api_key,
-                      base_url=self.endpoint_url,
-                      logger=self.logger)
-        # if self.scan:
-        #     prompt = f"""
-        #     Navigate through the entire website starting from the homepage. Explore all accessible pages by following the available links and clicking on buttons with icons.
-        #     If you get lost or stuck, click the 'Comarch BSS' button in the top left corner to return to the homepage. Do not click the links which you've already explored
-        #     """
-        # else:
-        prompt = f"{self.user_input}. This map of UI elements specifies what view has what button and what the buttons are leading to: [{self.context_var}]"
+        try:
+            self.context_var = self.pathfinder.get_ui_path(self.user_input)
+            query = Query(api_key=self.endpoint_api_key,
+                          base_url=self.endpoint_url,
+                          logger=self.logger)
+            # if self.scan:
+            #     prompt = f"""
+            #     Navigate through the entire website starting from the homepage. Explore all accessible pages by following the available links and clicking on buttons with icons.
+            #     If you get lost or stuck, click the 'Comarch BSS' button in the top left corner to return to the homepage. Do not click the links which you've already explored
+            #     """
+            # else:
+            prompt = f"{self.user_input}. This map of UI elements specifies what view has what button and what the buttons are leading to: [{self.context_var}]"
 
-        query.execute(
-            prompt=prompt)
+            query.execute(
+                prompt=prompt)
+        except Exception as e:
+            self.error_occurred.emit(str(e))
 
 class ChatDialog(QDialog):
 
@@ -166,6 +178,7 @@ class ChatDialog(QDialog):
             scan_thread = ScanThread(self.kg_builder ,clicked_button, encoded_img)
             self.temp_thread_container.append(scan_thread)
             scan_thread.start()
+            scan_thread.error_occurred.connect(lambda msg: self.add_chat_message("SYSTEM", f"Error: {msg}"))
             scan_thread.finished.connect(self.scan_callback)
         except Exception as e:
             self.add_chat_message("SYSTEM", f"There was an error during view extraction: {str(e)}")
@@ -178,6 +191,7 @@ class ChatDialog(QDialog):
             encoded_image = ImageEncoder.encode(Snapshotter.snapshot())
             self.kg_init_thread = KGInitThread(self.kg_builder, encoded_image)
             self.kg_init_thread.start()
+            self.kg_init_thread.error_occurred.connect(lambda msg: self.add_chat_message("SYSTEM", f"Error: {msg}"))
             self.kg_init_thread.finished.connect(self.cache_callback)
         except Exception as e:
             self.add_chat_message("SYSTEM", f"There was an error during view caching: {str(e)}")
@@ -194,13 +208,14 @@ class ChatDialog(QDialog):
                                        pathfinder=self.pathfinder
                                        )
 
+            query_thread.error_occurred.connect(lambda msg: self.add_chat_message("SYSTEM", f"Error: {msg}"))
             query_thread.finished.connect(self.thread_callback)
             query_thread.start()
             self.temp_thread_container.append(query_thread)
             self.showMinimized()
 
         except Exception as e:
-            self.add_chat_message("SYSTEM", str(e))
+            self.add_chat_message("SYSTEM", f"There was an error during action submit: {str(e)}")
 
     def maximize_callback(self):
         self.showMaximized()
