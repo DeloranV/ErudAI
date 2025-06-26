@@ -97,6 +97,9 @@ class ChatDialog(QDialog):
 
         self.settings_dialog = SettingsDialog(self)
 
+        self.autonomous_scanning_in_progress = False
+        self.emulator_thread = None  # To store the running thread
+
         # GUI model endpoint
         self.endpoint_url = self.settings_dialog.gui_model_endpoint.text()
         self.endpoint_api_key = self.settings_dialog.gui_api_key.text() or None
@@ -195,6 +198,60 @@ class ChatDialog(QDialog):
 
         root_layout.addLayout(buttons_layout)
 
+    def load_settings(self):
+        # GUI model endpoint
+        self.endpoint_url = self.settings_dialog.gui_model_endpoint.text()
+        self.endpoint_api_key = self.settings_dialog.gui_api_key.text() or None
+
+        # GUI model deployment
+        self.gui_model_deployment = "cloud" if self.settings_dialog.gui_cloud.isChecked() else "local"
+
+        # Neo4j settings
+        self.n4j_uri = self.settings_dialog.neo4j_endpoint.text()
+        self.n4j_db_name = self.settings_dialog.neo4j_db.text()
+        self.n4j_auth = (
+            self.settings_dialog.local_username.text(),
+            self.settings_dialog.local_password.text()
+        )
+
+        # Aura credentials
+        self.aura_username = self.settings_dialog.aura_username.text()
+        self.aura_api_key = self.settings_dialog.aura_api_key.text()
+
+        # OpenAI
+        self.openai_api_key = self.settings_dialog.openai_api_key.text()
+
+        # Autonomous scanning settings
+        if self.settings_dialog.autonomous_scanning_endpoint.isChecked():
+            self.autonomous_mode = "endpoint"
+            self.autonomous_endpoint_url = self.settings_dialog.endpoint_url_input.text()
+            self.autonomous_endpoint_api_key = self.settings_dialog.endpoint_api_key_input.text()
+            self.autonomous_model_name = self.settings_dialog.endpoint_model_name_input.text()
+            self.autonomous_gpt_api_key = None
+        elif self.settings_dialog.autonomous_scanning_gpt.isChecked():
+            self.autonomous_mode = "gpt"
+            self.autonomous_gpt_api_key = self.settings_dialog.gpt_api_key_input.text()
+            self.autonomous_endpoint_url = None
+            self.autonomous_endpoint_api_key = None
+            self.autonomous_model_name = None
+        else:
+            self.autonomous_mode = "off"
+            self.autonomous_endpoint_url = None
+            self.autonomous_endpoint_api_key = None
+            self.autonomous_model_name = None
+            self.autonomous_gpt_api_key = None
+
+        # Debug settings
+        self.debug_mode = "on" if self.settings_dialog.debug_on.isChecked() else "off"
+        self.log_snapshots = self.settings_dialog.log_snapshots.isChecked()
+        self.log_encoded = self.settings_dialog.log_encoded.isChecked()
+
+        # Logger (recreate if needed)
+        self.logger = Logger(
+            log_snapshot=self.log_snapshots,
+            log_encoded_image=self.log_encoded
+        )
+
     def open_settings(self):
         self.settings_dialog.exec()
 
@@ -223,6 +280,7 @@ class ChatDialog(QDialog):
             fade.start()
 
     def extract_view(self):
+        self.load_settings()
         try:
             clicked_button = self.user_input_widget.text()
             self.showMinimized()
@@ -238,37 +296,52 @@ class ChatDialog(QDialog):
 
     def on_scan_toggle(self):
         try:
-            if self.autonomous_mode == 'endpoint':
-                auth = [self.autonomous_endpoint_url,
-                        self.autonomous_endpoint_api_key,
-                        self.autonomous_model_name]
-                self.emulator_thread = AutonomyEmulatorThread('endpoint', auth)
+            self.load_settings()
+
+            if self.autonomous_scanning_in_progress:
+                # Abort the scan
+                if self.emulator_thread and self.emulator_thread.isRunning():
+                    self.emulator_thread.terminate()
+                    self.emulator_thread.wait()
+                self.autonomous_scanning_in_progress = False
+                self.scan_button.setText("Begin Scan")
+                self.add_chat_message("SYSTEM", "Scan aborted")
+                return
+
+            if self.autonomous_mode in ['endpoint', 'gpt']:
+                # Start autonomous scanning
+                if self.autonomous_mode == 'endpoint':
+                    auth = [self.autonomous_endpoint_url,
+                            self.autonomous_endpoint_api_key,
+                            self.autonomous_model_name]
+                else:
+                    auth = [self.autonomous_gpt_api_key]
+
+                self.emulator_thread = AutonomyEmulatorThread(self.autonomous_mode, auth)
                 self.showMinimized()
                 self.temp_thread_container.append(self.emulator_thread)
                 self.emulator_thread.start()
 
-            elif self.autonomous_mode == 'gpt':
-                auth = [self.autonomous_gpt_api_key]
-
-                self.emulator_thread = AutonomyEmulatorThread('gpt', auth)
-                self.showMinimized()
-                self.temp_thread_container.append(self.emulator_thread)
-                self.emulator_thread.start()
-
+                self.autonomous_scanning_in_progress = True
+                self.scan_button.setText("Stop")
             else:
+                # Manual scan mode
                 self.kg_builder = kg_extractor(self.openai_api_key, self.n4j_uri, self.n4j_auth)
                 self.showMinimized()
                 sleep(2)
                 encoded_image = ImageEncoder.encode(Snapshotter.snapshot())
                 self.kg_init_thread = KGInitThread(self.kg_builder, encoded_image)
                 self.kg_init_thread.start()
-                self.kg_init_thread.error_occurred.connect(lambda msg: self.add_chat_message("SYSTEM", f"Error during view caching thread: {msg}"))
+                self.kg_init_thread.error_occurred.connect(
+                    lambda msg: self.add_chat_message("SYSTEM", f"Error during view caching thread: {msg}"))
                 self.kg_init_thread.finished.connect(self.cache_callback)
+
         except Exception as e:
-            self.add_chat_message("SYSTEM", f"There was an error during view caching: {str(e)}")
+            self.add_chat_message("SYSTEM", f"There was an error during scanning: {str(e)}")
 
     def on_submit(self):
         try:
+            self.load_settings()
             user_input = self.user_input_widget.text()
             self.add_chat_message("You", user_input)
             self.pathfinder = Pathfinder(self.n4j_uri, self.n4j_auth, self.n4j_db_name, self.openai_api_key)
@@ -302,6 +375,7 @@ class ChatDialog(QDialog):
         self.maximize_callback()
         self.scan_button.clicked.disconnect()
         self.scan_button.clicked.connect(self.extract_view)
+        self.autonomous_scanning_in_progress = False
 
     def scan_callback(self):
         self.scan_button.clicked.disconnect()
@@ -311,6 +385,7 @@ class ChatDialog(QDialog):
         self.user_input_widget.setText("")
         self.scan_button.setText("Begin Scan")
         self.add_chat_message("SYSTEM", "View extraction complete")
+        self.autonomous_scanning_in_progress = False
 
     def thread_callback(self):
         self.maximize_callback()

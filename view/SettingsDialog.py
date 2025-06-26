@@ -118,14 +118,33 @@ class SettingsDialog(QDialog):
         layout.addLayout(autonomous_layout)
 
         # Container for autonomous scanning mode inputs
-        self.autonomous_scanning_inputs_container = QVBoxLayout()
-        layout.addLayout(self.autonomous_scanning_inputs_container)
+        self.endpoint_url_label = QLabel("Endpoint URL:")
+        self.endpoint_url_input = QLineEdit()
+        layout.addWidget(self.endpoint_url_label)
+        layout.addWidget(self.endpoint_url_input)
 
+        self.endpoint_api_key_label = QLabel("Endpoint API key:")
+        self.endpoint_api_key_input = QLineEdit()
+        layout.addWidget(self.endpoint_api_key_label)
+        layout.addWidget(self.endpoint_api_key_input)
+
+        self.endpoint_model_name_label = QLabel("Model name:")
+        self.endpoint_model_name_input = QLineEdit()
+        layout.addWidget(self.endpoint_model_name_label)
+        layout.addWidget(self.endpoint_model_name_input)
+
+        self.gpt_api_key_label = QLabel("OpenAI API key:")
+        self.gpt_api_key_input = QLineEdit()
+        layout.addWidget(self.gpt_api_key_label)
+        layout.addWidget(self.gpt_api_key_input)
+
+        # Hook up visibility toggles
         self.autonomous_scanning_endpoint.toggled.connect(self.update_autonomous_scanning_fields)
         self.autonomous_scanning_gpt.toggled.connect(self.update_autonomous_scanning_fields)
         self.autonomous_scanning_off.toggled.connect(self.update_autonomous_scanning_fields)
 
-        self.update_autonomous_scanning_fields()  # initialize
+        # Initialize visibility
+        self.update_autonomous_scanning_fields()
 
         # Debug mode toggle
         layout.addWidget(QLabel("Debug mode:"))
@@ -187,33 +206,20 @@ class SettingsDialog(QDialog):
         self.save_button.clicked.connect(self.save_settings)
 
     def update_autonomous_scanning_fields(self):
-        # Clear existing widgets
-        while self.autonomous_scanning_inputs_container.count():
-            child = self.autonomous_scanning_inputs_container.takeAt(0)
-            if child.widget():
-                child.widget().deleteLater()
+        is_endpoint = self.autonomous_scanning_endpoint.isChecked()
+        is_gpt = self.autonomous_scanning_gpt.isChecked()
 
-        if self.autonomous_scanning_endpoint.isChecked():
-            self.endpoint_url_label = QLabel("Endpoint URL:")
-            self.endpoint_url_input = QLineEdit()
-            self.autonomous_scanning_inputs_container.addWidget(self.endpoint_url_label)
-            self.autonomous_scanning_inputs_container.addWidget(self.endpoint_url_input)
+        # Endpoint fields visibility
+        self.endpoint_url_label.setVisible(is_endpoint)
+        self.endpoint_url_input.setVisible(is_endpoint)
+        self.endpoint_api_key_label.setVisible(is_endpoint)
+        self.endpoint_api_key_input.setVisible(is_endpoint)
+        self.endpoint_model_name_label.setVisible(is_endpoint)
+        self.endpoint_model_name_input.setVisible(is_endpoint)
 
-            self.endpoint_api_key_label = QLabel("Endpoint API key:")
-            self.endpoint_api_key_input = QLineEdit()
-            self.autonomous_scanning_inputs_container.addWidget(self.endpoint_api_key_label)
-            self.autonomous_scanning_inputs_container.addWidget(self.endpoint_api_key_input)
-
-            self.endpoint_model_name_label = QLabel("Model name:")
-            self.endpoint_model_name_input = QLineEdit()
-            self.autonomous_scanning_inputs_container.addWidget(self.endpoint_model_name_label)
-            self.autonomous_scanning_inputs_container.addWidget(self.endpoint_model_name_input)
-
-        elif self.autonomous_scanning_gpt.isChecked():
-            self.gpt_api_key_label = QLabel("OpenAI API key:")
-            self.gpt_api_key_input = QLineEdit()
-            self.autonomous_scanning_inputs_container.addWidget(self.gpt_api_key_label)
-            self.autonomous_scanning_inputs_container.addWidget(self.gpt_api_key_input)
+        # GPT fields visibility
+        self.gpt_api_key_label.setVisible(is_gpt)
+        self.gpt_api_key_input.setVisible(is_gpt)
 
     def toggle_gui_api_key(self):
         visible = self.gui_cloud.isChecked()
@@ -271,12 +277,12 @@ class SettingsDialog(QDialog):
         }
 
         # Autonomous scanning subfields
-        if self.autonomous_scanning_endpoint.isChecked():
-            data["autonomous_endpoint_url"] = self.endpoint_url_input.text()
-            data["autonomous_endpoint_api_key"] = self.endpoint_api_key_input.text()
-            data["autonomous_model_name"] = self.endpoint_model_name_input.text()
-        elif self.autonomous_scanning_gpt.isChecked():
-            data["autonomous_gpt_api_key"] = self.gpt_api_key_input.text()
+
+        data["autonomous_endpoint_url"] = self.endpoint_url_input.text()
+        data["autonomous_endpoint_api_key"] = self.endpoint_api_key_input.text()
+        data["autonomous_model_name"] = self.endpoint_model_name_input.text()
+
+        data["autonomous_gpt_api_key"] = self.gpt_api_key_input.text()
 
         with open(SETTINGS_FILE, "w") as f:
             json.dump(data, f, indent=2)
@@ -312,12 +318,12 @@ class SettingsDialog(QDialog):
 
         self.update_autonomous_scanning_fields()
 
-        if scanning_mode == "endpoint":
-            self.endpoint_url_input.setText(data.get("autonomous_endpoint_url", ""))
-            self.endpoint_api_key_input.setText(data.get("autonomous_endpoint_api_key", ""))
-            self.endpoint_model_name_input.setText(data.get("autonomous_model_name", ""))
-        elif scanning_mode == "gpt":
-            self.gpt_api_key_input.setText(data.get("autonomous_gpt_api_key", ""))
+
+        self.endpoint_url_input.setText(data.get("autonomous_endpoint_url", ""))
+        self.endpoint_api_key_input.setText(data.get("autonomous_endpoint_api_key", ""))
+        self.endpoint_model_name_input.setText(data.get("autonomous_model_name", ""))
+
+        self.gpt_api_key_input.setText(data.get("autonomous_gpt_api_key", ""))
 
         (self.debug_on if data.get("debug") == "on" else self.debug_off).setChecked(True)
         (self.log_snapshots if data.get("log_snapshots") == "on" else self.log_snapshots_off).setChecked(True)
