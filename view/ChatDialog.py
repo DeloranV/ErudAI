@@ -9,6 +9,17 @@ from util import Logger
 from .SettingsDialog import SettingsDialog
 from kg.KnowledgeBuilder import kg_extractor
 from util import Snapshotter, ImageEncoder
+from autonomous_scanner import AutonomyEmulator
+
+class AutonomyEmulatorThread(QThread):
+    def __init__(self,
+                 autonomous_mode,
+                 auth):
+        super().__init__()
+        self.emulator = AutonomyEmulator(autonomous_mode, auth)
+
+    def run(self):
+        self.emulator.execute()
 
 class KGInitThread(QThread):
     error_occurred = Signal(str)
@@ -84,17 +95,55 @@ class ChatDialog(QDialog):
         self.program_option_mode = None
 
         self.settings_dialog = SettingsDialog(self)
+
+        # GUI model endpoint
         self.endpoint_url = self.settings_dialog.gui_model_endpoint.text()
-        self.endpoint_api_key = self.settings_dialog.gui_api_key.text()
-        if self.endpoint_api_key == "": self.endpoint_api_key = None
+        self.endpoint_api_key = self.settings_dialog.gui_api_key.text() or None
+
+        # GUI model deployment
+        self.gui_model_deployment = "cloud" if self.settings_dialog.gui_cloud.isChecked() else "local"
+
+        # Neo4j settings
         self.n4j_uri = self.settings_dialog.neo4j_endpoint.text()
         self.n4j_db_name = self.settings_dialog.neo4j_db.text()
-        self.n4j_auth = (self.settings_dialog.local_username.text(),
-                    self.settings_dialog.local_password.text())
+        self.n4j_auth = (
+            self.settings_dialog.local_username.text(),
+            self.settings_dialog.local_password.text()
+        )
 
+        # Aura credentials (if used)
+        self.aura_username = self.settings_dialog.aura_username.text()
+        self.aura_api_key = self.settings_dialog.aura_api_key.text()
+
+        # OpenAI
         self.openai_api_key = self.settings_dialog.openai_api_key.text()
 
-        self.logger = Logger(log_snapshot=True, log_encoded_image=True)
+        # Autonomous scanning settings
+        if self.settings_dialog.autonomous_scanning_endpoint.isChecked():
+            self.autonomous_mode = "endpoint"
+            self.autonomous_endpoint_url = self.settings_dialog.endpoint_url_input.text()
+            self.autonomous_endpoint_api_key = self.settings_dialog.endpoint_api_key_input.text()
+            self.autonomous_model_name = self.settings_dialog.endpoint_model_name_input.text()
+        elif self.settings_dialog.autonomous_scanning_gpt.isChecked():
+            self.autonomous_mode = "gpt"
+            self.autonomous_gpt_api_key = self.settings_dialog.gpt_api_key_input.text()
+        else:
+            self.autonomous_mode = "off"
+            self.autonomous_endpoint_url = None
+            self.autonomous_endpoint_api_key = None
+            self.autonomous_model_name = None
+            self.autonomous_gpt_api_key = None
+
+        # Debug settings
+        self.debug_mode = "on" if self.settings_dialog.debug_on.isChecked() else "off"
+        self.log_snapshots = self.settings_dialog.log_snapshots.isChecked()
+        self.log_encoded = self.settings_dialog.log_encoded.isChecked()
+
+        # Logger
+        self.logger = Logger(
+            log_snapshot=self.log_snapshots,
+            log_encoded_image=self.log_encoded
+        )
 
         # THREAD NEEDS TO BE IN A CONTAINER OR AS A CLASS MEMBER TO NOT GO OUT OF SCOPE
         self.temp_thread_container = [] # TODO
@@ -181,21 +230,39 @@ class ChatDialog(QDialog):
             scan_thread = ScanThread(self.kg_builder ,clicked_button, encoded_img)
             self.temp_thread_container.append(scan_thread)
             scan_thread.start()
-            scan_thread.error_occurred.connect(lambda msg: self.add_chat_message("SYSTEM", f"Error: {msg}"))
+            scan_thread.error_occurred.connect(lambda msg: self.add_chat_message("SYSTEM", f"Error during view extraction thread: {msg}"))
             scan_thread.finished.connect(self.scan_callback)
         except Exception as e:
             self.add_chat_message("SYSTEM", f"There was an error during view extraction: {str(e)}")
 
     def on_scan_toggle(self):
         try:
-            self.kg_builder = kg_extractor(self.openai_api_key, self.n4j_uri, self.n4j_auth)
-            self.showMinimized()
-            sleep(2)
-            encoded_image = ImageEncoder.encode(Snapshotter.snapshot())
-            self.kg_init_thread = KGInitThread(self.kg_builder, encoded_image)
-            self.kg_init_thread.start()
-            self.kg_init_thread.error_occurred.connect(lambda msg: self.add_chat_message("SYSTEM", f"Error: {msg}"))
-            self.kg_init_thread.finished.connect(self.cache_callback)
+            if self.autonomous_mode == 'endpoint':
+                auth = [self.autonomous_endpoint_url,
+                        self.autonomous_endpoint_api_key,
+                        self.autonomous_model_name]
+                self.emulator_thread = AutonomyEmulatorThread('endpoint', auth)
+                self.showMinimized()
+                self.temp_thread_container.append(self.emulator_thread)
+                self.emulator_thread.start()
+
+            elif self.autonomous_mode == 'gpt':
+                auth = [self.autonomous_gpt_api_key]
+
+                self.emulator_thread = AutonomyEmulatorThread('gpt', auth)
+                self.showMinimized()
+                self.temp_thread_container.append(self.emulator_thread)
+                self.emulator_thread.start()
+
+            else:
+                self.kg_builder = kg_extractor(self.openai_api_key, self.n4j_uri, self.n4j_auth)
+                self.showMinimized()
+                sleep(2)
+                encoded_image = ImageEncoder.encode(Snapshotter.snapshot())
+                self.kg_init_thread = KGInitThread(self.kg_builder, encoded_image)
+                self.kg_init_thread.start()
+                self.kg_init_thread.error_occurred.connect(lambda msg: self.add_chat_message("SYSTEM", f"Error during view caching thread: {msg}"))
+                self.kg_init_thread.finished.connect(self.cache_callback)
         except Exception as e:
             self.add_chat_message("SYSTEM", f"There was an error during view caching: {str(e)}")
 
@@ -211,7 +278,7 @@ class ChatDialog(QDialog):
                                        pathfinder=self.pathfinder
                                        )
 
-            query_thread.error_occurred.connect(lambda msg: self.add_chat_message("SYSTEM", f"Error: {msg}"))
+            query_thread.error_occurred.connect(lambda msg: self.add_chat_message("SYSTEM", f"Error during query thread: {msg}"))
             query_thread.finished.connect(self.thread_callback)
             query_thread.start()
             self.temp_thread_container.append(query_thread)

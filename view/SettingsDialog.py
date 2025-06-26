@@ -1,6 +1,6 @@
 from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QRadioButton,
-    QPushButton, QButtonGroup, QWidget
+    QPushButton, QButtonGroup, QWidget, QScrollArea
 )
 import os
 import json
@@ -13,7 +13,18 @@ class SettingsDialog(QDialog):
         self.setWindowTitle("Settings")
         self.setMinimumWidth(400)
 
-        layout = QVBoxLayout()
+        # Main layout of the dialog
+        outer_layout = QVBoxLayout(self)
+
+        # Create a scroll area
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        outer_layout.addWidget(scroll)
+
+        # Inner widget and layout for scroll content
+        scroll_content = QWidget()
+        layout = QVBoxLayout(scroll_content)
+        scroll.setWidget(scroll_content)
 
         # GUI model endpoint
         layout.addWidget(QLabel("Address of GUI model endpoint:"))
@@ -88,6 +99,34 @@ class SettingsDialog(QDialog):
         self.openai_api_key = QLineEdit()
         layout.addWidget(self.openai_api_key)
 
+        # Autonomous scanning toggle
+        self.autonomous_scanning_label = QLabel("Toggle autonomous scanning movement (experimental):")
+        self.autonomous_scanning_endpoint = QRadioButton("Endpoint")
+        self.autonomous_scanning_gpt = QRadioButton("GPT")
+        self.autonomous_scanning_off = QRadioButton("Off")
+
+        self.autonomous_scanning_group = QButtonGroup()
+        self.autonomous_scanning_group.addButton(self.autonomous_scanning_endpoint)
+        self.autonomous_scanning_group.addButton(self.autonomous_scanning_gpt)
+        self.autonomous_scanning_group.addButton(self.autonomous_scanning_off)
+
+        layout.addWidget(self.autonomous_scanning_label)
+        autonomous_layout = QHBoxLayout()
+        autonomous_layout.addWidget(self.autonomous_scanning_endpoint)
+        autonomous_layout.addWidget(self.autonomous_scanning_gpt)
+        autonomous_layout.addWidget(self.autonomous_scanning_off)
+        layout.addLayout(autonomous_layout)
+
+        # Container for autonomous scanning mode inputs
+        self.autonomous_scanning_inputs_container = QVBoxLayout()
+        layout.addLayout(self.autonomous_scanning_inputs_container)
+
+        self.autonomous_scanning_endpoint.toggled.connect(self.update_autonomous_scanning_fields)
+        self.autonomous_scanning_gpt.toggled.connect(self.update_autonomous_scanning_fields)
+        self.autonomous_scanning_off.toggled.connect(self.update_autonomous_scanning_fields)
+
+        self.update_autonomous_scanning_fields()  # initialize
+
         # Debug mode toggle
         layout.addWidget(QLabel("Debug mode:"))
         self.debug_on = QRadioButton("On")
@@ -134,8 +173,6 @@ class SettingsDialog(QDialog):
         button_layout.addWidget(self.close_button)
         layout.addLayout(button_layout)
 
-        self.setLayout(layout)
-
         # Connect radio logic
         self.gui_cloud.toggled.connect(self.toggle_gui_api_key)
         self.neo4j_aura.toggled.connect(self.toggle_aura_fields)
@@ -148,6 +185,35 @@ class SettingsDialog(QDialog):
 
         self.load_settings()
         self.save_button.clicked.connect(self.save_settings)
+
+    def update_autonomous_scanning_fields(self):
+        # Clear existing widgets
+        while self.autonomous_scanning_inputs_container.count():
+            child = self.autonomous_scanning_inputs_container.takeAt(0)
+            if child.widget():
+                child.widget().deleteLater()
+
+        if self.autonomous_scanning_endpoint.isChecked():
+            self.endpoint_url_label = QLabel("Endpoint URL:")
+            self.endpoint_url_input = QLineEdit()
+            self.autonomous_scanning_inputs_container.addWidget(self.endpoint_url_label)
+            self.autonomous_scanning_inputs_container.addWidget(self.endpoint_url_input)
+
+            self.endpoint_api_key_label = QLabel("Endpoint API key:")
+            self.endpoint_api_key_input = QLineEdit()
+            self.autonomous_scanning_inputs_container.addWidget(self.endpoint_api_key_label)
+            self.autonomous_scanning_inputs_container.addWidget(self.endpoint_api_key_input)
+
+            self.endpoint_model_name_label = QLabel("Model name:")
+            self.endpoint_model_name_input = QLineEdit()
+            self.autonomous_scanning_inputs_container.addWidget(self.endpoint_model_name_label)
+            self.autonomous_scanning_inputs_container.addWidget(self.endpoint_model_name_input)
+
+        elif self.autonomous_scanning_gpt.isChecked():
+            self.gpt_api_key_label = QLabel("OpenAI API key:")
+            self.gpt_api_key_input = QLineEdit()
+            self.autonomous_scanning_inputs_container.addWidget(self.gpt_api_key_label)
+            self.autonomous_scanning_inputs_container.addWidget(self.gpt_api_key_input)
 
     def toggle_gui_api_key(self):
         visible = self.gui_cloud.isChecked()
@@ -193,10 +259,24 @@ class SettingsDialog(QDialog):
 
             "openai_api_key": self.openai_api_key.text(),
 
+            "autonomous_scanning": (
+                "endpoint" if self.autonomous_scanning_endpoint.isChecked()
+                else "gpt" if self.autonomous_scanning_gpt.isChecked()
+                else "off"
+            ),
+
             "debug": "on" if self.debug_on.isChecked() else "off",
             "log_snapshots": "on" if self.log_snapshots.isChecked() else "off",
             "log_encoded": "on" if self.log_encoded.isChecked() else "off",
         }
+
+        # Autonomous scanning subfields
+        if self.autonomous_scanning_endpoint.isChecked():
+            data["autonomous_endpoint_url"] = self.endpoint_url_input.text()
+            data["autonomous_endpoint_api_key"] = self.endpoint_api_key_input.text()
+            data["autonomous_model_name"] = self.endpoint_model_name_input.text()
+        elif self.autonomous_scanning_gpt.isChecked():
+            data["autonomous_gpt_api_key"] = self.gpt_api_key_input.text()
 
         with open(SETTINGS_FILE, "w") as f:
             json.dump(data, f, indent=2)
@@ -221,6 +301,23 @@ class SettingsDialog(QDialog):
         self.local_password.setText(data.get("local_password", ""))
 
         self.openai_api_key.setText(data.get("openai_api_key", ""))
+
+        scanning_mode = data.get("autonomous_scanning", "off")
+        if scanning_mode == "endpoint":
+            self.autonomous_scanning_endpoint.setChecked(True)
+        elif scanning_mode == "gpt":
+            self.autonomous_scanning_gpt.setChecked(True)
+        else:
+            self.autonomous_scanning_off.setChecked(True)
+
+        self.update_autonomous_scanning_fields()
+
+        if scanning_mode == "endpoint":
+            self.endpoint_url_input.setText(data.get("autonomous_endpoint_url", ""))
+            self.endpoint_api_key_input.setText(data.get("autonomous_endpoint_api_key", ""))
+            self.endpoint_model_name_input.setText(data.get("autonomous_model_name", ""))
+        elif scanning_mode == "gpt":
+            self.gpt_api_key_input.setText(data.get("autonomous_gpt_api_key", ""))
 
         (self.debug_on if data.get("debug") == "on" else self.debug_off).setChecked(True)
         (self.log_snapshots if data.get("log_snapshots") == "on" else self.log_snapshots_off).setChecked(True)

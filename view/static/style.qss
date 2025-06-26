@@ -67,6 +67,58 @@ QDialog {
     font-size: 14px;
 }
 
+/* Make the scroll area background match your dialog */
+QScrollArea {
+    background-color: transparent; /* or #1e1e2f for full background */
+    border: none;
+}
+
+/* This ensures the content inside QScrollArea doesn't show white */
+QScrollArea > QWidget > QWidget {
+    background-color: transparent;
+}
+
+/* Or this if the above doesn't catch the widget properly */
+QAbstractScrollArea > QWidget {
+    background-color: transparent;
+}
+
+/* Scrollbar styling for consistency */
+QScrollBar:vertical {
+    background: #2a2a3d;
+    width: 8px;
+    margin: 2px 0;
+    border-radius: 4px;
+}
+
+QScrollBar::handle:vertical {
+    background: #888;
+    border-radius: 4px;
+}
+
+QScrollBar::add-line:vertical,
+QScrollBar::sub-line:vertical {
+    height: 0px;
+}
+
+QScrollBar:horizontal {
+    background: #2a2a3d;
+    height: 8px;
+    margin: 0 2px;
+    border-radius: 4px;
+}
+
+QScrollBar::handle:horizontal {
+    background: #888;
+    border-radius: 4px;
+}
+
+QScrollBar::add-line:horizontal,
+QScrollBar::sub-line:horizontal {
+    width: 0px;
+}
+
+
 QLabel {
     color: #dddddd;
     font-weight: normal;
