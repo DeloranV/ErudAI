@@ -10,6 +10,7 @@ from .SettingsDialog import SettingsDialog
 from kg.KnowledgeBuilder import kg_extractor
 from util import Snapshotter, ImageEncoder
 from autonomous_scanner import AutonomyEmulator
+#(TODO) STRIP API KEYS
 
 class AutonomyEmulatorThread(QThread):
     def __init__(self,

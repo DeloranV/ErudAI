@@ -4,7 +4,7 @@ from util import Snapshotter, ImageEncoder
 class HelperEndpoint:
     def __init__(self, base_url: str, api_key: str | None, model: str, logger=None):
         self.base_url = base_url
-        self.api_key = api_key
+        self.api_key = None #(TODO) CHANGE THIS
         self.model = model
         self.logger = logger
 
