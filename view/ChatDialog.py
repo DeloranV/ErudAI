@@ -99,6 +99,7 @@ class ChatDialog(QDialog):
 
         self.autonomous_scanning_in_progress = False
         self.emulator_thread = None  # To store the running thread
+        self.query_thread = None
 
         # GUI model endpoint
         self.endpoint_url = self.settings_dialog.gui_model_endpoint.text()
@@ -342,21 +343,39 @@ class ChatDialog(QDialog):
     def on_submit(self):
         try:
             self.load_settings()
+
+            if self.query_thread is not None:
+                if self.query_thread.isRunning():
+                    self.query_thread.terminate()
+                    self.query_thread.wait()
+                    self.add_chat_message("SYSTEM", "Action stopped.")
+                else:
+                    self.add_chat_message("SYSTEM", "No action is currently running.")
+                self.query_thread = None
+                self.send_button.setText("Send")
+                return
+
+            # Start a new thread
             user_input = self.user_input_widget.text()
             self.add_chat_message("You", user_input)
             self.pathfinder = Pathfinder(self.n4j_uri, self.n4j_auth, self.n4j_db_name, self.openai_api_key)
-            query_thread = QueryThread(endpoint_api_key=self.endpoint_api_key,
-                                       endpoint_url=self.endpoint_url,
-                                       user_input=user_input,
-                                       logger=self.logger,
-                                       pathfinder=self.pathfinder
-                                       )
 
-            query_thread.error_occurred.connect(lambda msg: self.add_chat_message("SYSTEM", f"Error during query thread: {msg}"))
-            query_thread.finished.connect(self.thread_callback)
-            query_thread.start()
-            self.temp_thread_container.append(query_thread)
+            self.query_thread = QueryThread(
+                endpoint_api_key=self.endpoint_api_key,
+                endpoint_url=self.endpoint_url,
+                user_input=user_input,
+                logger=self.logger,
+                pathfinder=self.pathfinder
+            )
+
+            self.query_thread.error_occurred.connect(
+                lambda msg: self.add_chat_message("SYSTEM", f"Error during query thread: {msg}")
+            )
+            self.query_thread.finished.connect(self.thread_callback)
+            self.query_thread.start()
+            self.temp_thread_container.append(self.query_thread)
             self.showMinimized()
+            self.send_button.setText("Stop")
 
         except Exception as e:
             self.add_chat_message("SYSTEM", f"There was an error during action submit: {str(e)}")
@@ -389,4 +408,6 @@ class ChatDialog(QDialog):
 
     def thread_callback(self):
         self.maximize_callback()
+        self.send_button.setText("Send")
+        self.query_thread = None
         self.add_chat_message("SYSTEM", "Action complete")

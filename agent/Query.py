@@ -105,43 +105,42 @@ class Query:
                 return response
 
             elif action_type == "scroll":
-                # Parsing scroll action
                 start_box = action_inputs.get("start_box")
+                direction = action_inputs.get("direction", "down").lower()
+
+                x = y = None  # default to None, if start_box is invalid
+
                 if start_box:
                     try:
                         box = ast.literal_eval(start_box) if isinstance(start_box, str) else start_box
 
                         if isinstance(box, (tuple, list)):
                             if len(box) == 2:
-                                x, y = box
+                                x, y = map(int, box)
                             elif len(box) == 4:
-                                x1, y1, x2, y2 = box
+                                x1, y1, x2, y2 = map(int, box)
                                 x = round((x1 + x2) / 2)
                                 y = round((y1 + y2) / 2)
                             else:
                                 raise ValueError("start_box must have 2 or 4 elements")
                         else:
                             raise TypeError("start_box must be a tuple or list")
-
                     except Exception as e:
-                        raise ValueError(f"Invalid start_box format: {start_box} — {e}")
-                else:
-                    x = y = None
+                        print(f"[scroll] Invalid start_box format: {start_box} — {e}")
+                        x = y = None  # fallback if parsing fails
 
-                if x == None:
-                    if "up" in direction.lower():
-                        pyautogui.scroll(5)
-                        pyautogui_code += f"\npyautogui.scroll(5)"
-                    elif "down" in direction.lower():
-                        pyautogui.scroll(-5)
-                        pyautogui_code += f"\npyautogui.scroll(-5)"
-                else:
-                    if "up" in direction.lower():
-                        pyautogui.scroll(5, x=x, y=y)
-                        pyautogui_code += f"\npyautogui.scroll(5, x={x}, y={y})"
-                    elif "down" in direction.lower():
-                        pyautogui.scroll(-5, x=x, y=y)
-                        pyautogui_code += f"\npyautogui.scroll(-5, x={x}, y={y})"
+                try:
+                    scroll_amount = 100 if direction in ["up", "right"] else -100
+
+                    if x is not None and y is not None:
+                        pyautogui.scroll(scroll_amount, x=x, y=y)
+                    else:
+                        pyautogui.scroll(scroll_amount)
+
+                    return action_dict
+                except Exception as e:
+                    print(f"[scroll] Scroll action failed: {e}")
+                    return None
 
             if action_type == "type":
                 content = action_inputs.get("content", "")

@@ -20,7 +20,7 @@ class AutonomyEmulator:
         self.api_key = api_key
         self.multistep = multistep
         self.logger = logger
-        self.history = []
+        self.history = ["Customers", "Accounts"]
 
         if helper_type == 'endpoint':
             self.helper_base_url = helper_auth[0]
