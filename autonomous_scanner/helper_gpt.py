@@ -58,7 +58,7 @@ class HelperGPT:
         client = self._create_connection()
         completion = client.chat.completions.create(
             extra_headers={},
-            extra_body={},# 4.1
+            extra_body={},
             model="gpt-4o-mini",
             messages=messages
         )

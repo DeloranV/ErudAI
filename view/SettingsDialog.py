@@ -1,7 +1,5 @@
-from PySide6.QtWidgets import (
-    QDialog, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QRadioButton,
-    QPushButton, QButtonGroup, QWidget, QScrollArea
-)
+from PySide6.QtWidgets import QDialog, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QRadioButton, \
+QPushButton, QButtonGroup, QWidget, QScrollArea
 import os
 import json
 

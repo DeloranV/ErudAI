@@ -114,13 +114,12 @@ class KgExtractor:
             if record["score"] > 0.98:
                 print("View is already in database")
                 node_data = record["node"]
-                # Safely extract and serialize the node properties
                 if node_data:
-                    node_properties = dict(node_data.items())  # or node_data._properties
+                    node_properties = dict(node_data.items())
                     normalized_properties = {
                         "view_name": node_properties.get("name"),
                         "view_url": node_properties.get("url"),
-                        "elements": node_properties.get("elements", [])  # Default to [] if missing
+                        "elements": node_properties.get("elements", [])
                     }
                     json_format = json.dumps(normalized_properties)
                 return json_format

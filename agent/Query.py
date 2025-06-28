@@ -104,7 +104,7 @@ class Query:
                 start_box = action_inputs.get("start_box")
                 direction = action_inputs.get("direction", "down").lower()
 
-                x = y = None  # default to None, if start_box is invalid
+                x = y = None
 
                 if start_box:
                     try:
