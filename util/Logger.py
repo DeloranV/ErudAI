@@ -1,6 +1,7 @@
 from pathlib import Path
 import time, datetime
 import os
+from PIL.Image import Image
 
 class Logger:
     def __init__(self,
@@ -20,15 +21,15 @@ class Logger:
         if not self.log_file.exists():
             open(self.log_file, 'x').close()
 
-    def log_text_data(self, label, data):
+    def log_text_data(self, label: str, data: str) -> None:
         with open(self.log_file, 'a', encoding='utf-16') as log_file:
             log_contents = f"""<{label}>:{data}\n"""
             log_file.write(log_contents)
 
-    def log_img_data(self, img):
+    def log_img_data(self, img: Image) -> None:
         img.save(self.log_directory.joinpath("IMG_" + str(time.time()) + ".png"), format="PNG")
 
-    def log_encoded_img_data(self, data):
+    def log_encoded_img_data(self, data: str) -> None:
         filename = "LOG_ENCODED_IMG_" + str(time.time())
         with open(self.log_directory.joinpath(filename), 'w') as encoded_img_log:
             encoded_img_log.write(data)

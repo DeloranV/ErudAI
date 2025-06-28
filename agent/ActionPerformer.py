@@ -7,7 +7,7 @@ class ActionPerformer:
         pyautogui.click()
 
     @staticmethod
-    def perform_input(content: str):
+    def perform_input(content: str) -> None:
         pyautogui.write(content)
 
     @staticmethod

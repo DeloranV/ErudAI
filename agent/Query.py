@@ -19,7 +19,7 @@ class Query:
         self.logger = logger
         self.scan = scan
 
-    def execute(self, prompt: str):
+    def execute(self, prompt: str) -> None:
         sleep(1)    # FOR HIDING CHAT WINDOW
         if self.multistep:
             while True: # DO-WHILE LOOP CONFORMING WITH PEP
@@ -37,12 +37,12 @@ class Query:
         return client
 
     @staticmethod
-    def _escape_single_quotes(text):
+    def _escape_single_quotes(text) -> str:
         pattern = r"(?<!\\)'"
         return re.sub(pattern, r"\\'", text)
 
     @staticmethod
-    def _parse_action(action_str):
+    def _parse_action(action_str: str) -> dict[str, str | None | dict] | None:
         try:
             node = ast.parse(action_str, mode='eval')
 
@@ -82,7 +82,7 @@ class Query:
             return None
 
     @staticmethod
-    def _parse_to_pyautogui(response):
+    def _parse_to_pyautogui(response: dict[str, str | None | dict]) -> dict[str, str | None | dict] | None:
         try:
             action_dict = response
             action_type = action_dict.get("action_type")
@@ -91,11 +91,9 @@ class Query:
             if action_type in ["click"]:
                 start_box = action_inputs.get("start_box")
 
-                x2, y2 = 0, 0
+                x1, y1 = 0, 0
                 if len(start_box) == 2:
                     x1, y1 = start_box
-                    #x2 = round(int(x1) * 1280 / 1000)
-                    #y2 = round(int(y1) * 720 / 1000)
 
                 ActionPerformer.perform_click([int(x1), int(y1)])
                 return response
@@ -159,7 +157,7 @@ class Query:
             return None
 
     @staticmethod
-    def _parse_to_structure_output(text):
+    def _parse_to_structure_output(text: str) -> dict[str, str | None | dict | dict]:
         text = text.strip()
 
         assert "Action:" in text
@@ -198,7 +196,7 @@ class Query:
         }
         return action
 
-    def _send(self, prompt: str, encoded_image: str):
+    def _send(self, prompt: str, encoded_image: str) -> dict[str, str | None | dict] | None | tuple[str, None]:
         """
         Sends the request to the model on behalf of the user
         Returns the coordinates of the queried element

@@ -1,12 +1,13 @@
 import json
 from openai import OpenAI
+from typing import Any
 
 class Planner:
     def __init__(self, openai_api: str, logger = None):
         self.openAI_api = openai_api
         self.logger = logger
 
-    def plan_route(self, user_prompt, database_nodes):
+    def plan_route(self, user_prompt: str, database_nodes: str) -> Any:
         client = OpenAI(api_key=self.openAI_api)
 
         if self.logger is not None:
@@ -33,4 +34,3 @@ class Planner:
             self.logger.log_text_data("PLANNER-output-nodes", response.output_text)
 
         return json.loads(response.output_text)
-

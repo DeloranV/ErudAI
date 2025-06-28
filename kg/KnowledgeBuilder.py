@@ -1,3 +1,5 @@
+from typing import Tuple, Any
+
 import neo4j
 import json
 from openai import OpenAI
@@ -7,20 +9,20 @@ DB_NAME = "neo4j"
 # IF USING SPLIT PROMPTS - SEND BOTH ASYNCHRONOUSLY !!!
 
 class KgExtractor:
-    def __init__(self, openai_api, n4j_uri, n4j_auth):
+    def __init__(self, openai_api: str, n4j_uri: str, n4j_auth: tuple[str,str]):
         self.node_cache = {"response_json": None, "embedded_json": None}
         self.openai_api = openai_api
         self.driver = neo4j.GraphDatabase.driver(n4j_uri, auth=n4j_auth)
 
-    def initialize_cache(self, encoded_image):
+    def initialize_cache(self, encoded_image: str) -> None:
         response, embed = self.extract_view(encoded_image)
         self.cache_view(response, embed)
 
-    def extract_gui_schema(self, clicked_button_text, encoded_image):
+    def extract_gui_schema(self, clicked_button_text: str, encoded_image: str) -> None:
         response, embed = self.extract_view(encoded_image)
         self.gui_insertion(response, embed, clicked_button_text)
 
-    def extract_view(self, encoded_image):
+    def extract_view(self, encoded_image: str) -> Tuple[Any, list[float]]:
         print("GUI extraction started")
         PROMPT_GUI = """
         You are a GUI agent tasked with recognizing UI elements in a screenshot and giving a precise description of the gui according to the format below:
@@ -93,7 +95,7 @@ class KgExtractor:
         #  `vector.similarity_function`: 'cosine'
         # }}
 
-    def check_existing(self, embedding):
+    def check_existing(self, embedding: list[float]) -> str | None:
         with self.driver.session(database=DB_NAME) as session:
             query = f'''
             CALL {{
@@ -125,7 +127,7 @@ class KgExtractor:
                 return json_format
             return None
 
-    def cache_view(self, response, embed):
+    def cache_view(self, response, embed: list[float]) -> None:
         if self.check_existing(embed):
             json_format = self.check_existing(embed)
             self.node_cache["response_json"] = json.loads(json_format)
@@ -133,7 +135,7 @@ class KgExtractor:
         self.node_cache["response_json"] = response
         self.node_cache["embedded_json"] = embed
 
-    def gui_insertion(self, node1, embed1, clicked_button):
+    def gui_insertion(self, node1, embed1: list[float], clicked_button: str) -> None:
         view_name1 = node1['view_name']
         view_url1 = node1['view_url']
 

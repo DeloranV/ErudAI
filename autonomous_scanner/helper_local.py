@@ -1,9 +1,9 @@
 from openai import OpenAI
 
 class HelperEndpoint:
-    def __init__(self, base_url: str, model: str, logger=None):
+    def __init__(self, base_url: str, model: str, api_key: str = None, logger = None):
         self.base_url = base_url
-        self.api_key = None #(TODO) CHANGE THIS
+        self.api_key = api_key
         self.model = model
         self.logger = logger
 
@@ -14,7 +14,7 @@ class HelperEndpoint:
         )
         return client
 
-    def plan_route(self, encoded_image, history):
+    def plan_route(self, encoded_image: str, history: list[str]) -> str:
         computer_use_prompt = f"""
         You are a GUI scanning agent.
         Your task is to explore software on the screenshot breadth first.

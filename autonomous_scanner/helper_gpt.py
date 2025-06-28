@@ -11,7 +11,7 @@ class HelperGPT:
         )
         return client
 
-    def plan_route(self, encoded_image, history):
+    def plan_route(self, encoded_image: str, history: list[str]) -> str:
         computer_use_prompt = f"""
         You are a GUI scanning agent.
         Your task is to explore software on the screenshot breadth first.

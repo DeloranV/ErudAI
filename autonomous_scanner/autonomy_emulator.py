@@ -10,12 +10,12 @@ from .helper_local import HelperEndpoint
 
 class AutonomyEmulator:
     def __init__(self,
-                 helper_type,
-                 helper_auth,
-                 base_url="http://127.0.0.1:8000/v1",
-                 api_key=None,
+                 helper_type: str,  # TODO ENUM HELPER TYPES
+                 helper_auth: str,
+                 base_url: str = "http://127.0.0.1:8000/v1",
+                 api_key: str = None,
                  multistep: bool = True,
-                 logger=None):
+                 logger = None):
         self.base_url = base_url
         self.api_key = api_key
         self.multistep = multistep
@@ -38,7 +38,7 @@ class AutonomyEmulator:
             self.helper_openai_api = helper_auth[0]
             self.helper = HelperGPT(openai_api=self.helper_openai_api)
 
-    def execute(self):
+    def execute(self) -> None:
         sleep(2)  # FOR HIDING CHAT WINDOW
         if self.multistep:
             while True:  # DO-WHILE LOOP CONFORMING WITH PEP
@@ -60,12 +60,12 @@ class AutonomyEmulator:
         return client
 
     @staticmethod
-    def _escape_single_quotes(text):
+    def _escape_single_quotes(text: str) -> str:
         pattern = r"(?<!\\)'"
         return re.sub(pattern, r"\\'", text)
 
     @staticmethod
-    def _parse_action(action_str):
+    def _parse_action(action_str: str) -> dict[str, str | None | dict] | None:
         try:
             node = ast.parse(action_str, mode='eval')
 
@@ -105,7 +105,7 @@ class AutonomyEmulator:
             return None
 
     @staticmethod
-    def _parse_to_pyautogui(response):
+    def _parse_to_pyautogui(response: dict[str, str | None | dict]) -> dict[str, str | None | dict] | None:
         try:
             action_dict = response
             action_type = action_dict.get("action_type")
@@ -113,12 +113,9 @@ class AutonomyEmulator:
 
             if action_type in ["click"]:
                 start_box = action_inputs.get("start_box")
-
-                x2, y2 = 0, 0
+                x1, y1 = 0, 0
                 if len(start_box) == 2:
                     x1, y1 = start_box
-                    # x2 = round(int(x1) * 1280 / 1000)
-                    # y2 = round(int(y1) * 720 / 1000)
 
                 ActionPerformer.perform_click([int(x1), int(y1)])
                 return response
@@ -143,7 +140,7 @@ class AutonomyEmulator:
             return None
 
     @staticmethod
-    def _parse_to_structure_output(text):
+    def _parse_to_structure_output(text: str) -> dict[str, str | None | dict | dict]:
         text = text.strip()
 
         assert "Action:" in text
@@ -182,7 +179,7 @@ class AutonomyEmulator:
         }
         return action
 
-    def _send(self, prompt: str, encoded_image: str):
+    def _send(self, prompt: str, encoded_image: str) -> None | dict[str, str | None | dict] | tuple[str, None]:
         """
         Sends the request to the model on behalf of the user
         Returns the coordinates of the queried element

@@ -183,7 +183,10 @@ class SettingsDialog(QDialog):
         self.load_settings()
         self.save_button.clicked.connect(self.save_settings)
 
-    def update_autonomous_scanning_fields(self):
+    def update_autonomous_scanning_fields(self) -> None:
+        """
+        Method responsible for updating the visibility of autonomous scanner options in the settings menu
+        """
         is_endpoint = self.autonomous_scanning_endpoint.isChecked()
         is_gpt = self.autonomous_scanning_gpt.isChecked()
 
@@ -197,12 +200,18 @@ class SettingsDialog(QDialog):
         self.gpt_api_key_label.setVisible(is_gpt)
         self.gpt_api_key_input.setVisible(is_gpt)
 
-    def toggle_gui_api_key(self):
+    def toggle_gui_api_key(self) -> None:
+        """
+        Method responsible for updating the visibility of cloud-deployed GUI model options in the settings menu
+        """
         visible = self.gui_cloud.isChecked()
         self.gui_api_key.setVisible(visible)
         self.gui_api_key_label.setVisible(visible)
 
-    def toggle_aura_fields(self):
+    def toggle_aura_fields(self) -> None:
+        """
+        Method responsible for updating the visibility of neo4j configuration options in the settings menu
+        """
         aura_visible = self.neo4j_aura.isChecked()
         local_visible = self.neo4j_local.isChecked()
 
@@ -216,7 +225,10 @@ class SettingsDialog(QDialog):
         self.local_password.setVisible(local_visible)
         self.local_password_label.setVisible(local_visible)
 
-    def toggle_debug_fields(self):
+    def toggle_debug_fields(self) -> None:
+        """
+        Method responsible for updating the visibility of debug options in the settings menu
+        """
         visible = self.debug_on.isChecked()
         self.log_snapshots.setVisible(visible)
         self.log_snapshots_off.setVisible(visible)
@@ -225,7 +237,10 @@ class SettingsDialog(QDialog):
         self.log_encoded_off.setVisible(visible)
         self.log_encoded_label.setVisible(visible)
 
-    def save_settings(self):
+    def save_settings(self) -> None:
+        """
+        Method responsible for saving the configured settings into a .json file
+        """
         data = {
             "gui_model_endpoint": self.gui_model_endpoint.text(),
             "gui_model_deployment": "cloud" if self.gui_cloud.isChecked() else "local",
@@ -260,7 +275,10 @@ class SettingsDialog(QDialog):
         with open(SETTINGS_FILE, "w") as f:
             json.dump(data, f, indent=2)
 
-    def load_settings(self):
+    def load_settings(self) -> None:
+        """
+        Method responsible for loading configuration settings from a .json file
+        """
         if not os.path.exists(SETTINGS_FILE):
             return
 

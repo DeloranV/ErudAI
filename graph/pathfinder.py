@@ -13,10 +13,10 @@ class Pathfinder:
         self.planner = Planner(openai_api)
         self.logger = logger
 
-    def test_connectivity(self):
+    def test_connectivity(self) -> None:
         self.driver.verify_connectivity()
 
-    def get_all_nodes(self):
+    def get_all_nodes(self) -> str:
         with self.driver.session(database=self.DB_NAME) as session:
             result = session.run("MATCH (n)-[r]->(v) RETURN n.name, type(r), v.name")
             context_var = ""
@@ -25,14 +25,14 @@ class Pathfinder:
             return context_var
 
     @staticmethod
-    def generate_path_query(start_node, end_node):
+    def generate_path_query(start_node: str, end_node: str) -> str:
         path_query = f"""
                 MATCH p = SHORTEST 1 ({{name: '{start_node}'}})-->+({{name: '{end_node}'}})
                 RETURN p
                 """
         return path_query
 
-    def get_ui_path(self, user_prompt) -> str:
+    def get_ui_path(self, user_prompt: str) -> str:
         context_var = ""
         start_end = self.planner.plan_route(user_prompt, self.get_all_nodes())
         path_query = Pathfinder.generate_path_query(start_end['start_node'], start_end['end_node'])
