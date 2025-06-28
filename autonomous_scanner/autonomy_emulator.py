@@ -133,12 +133,9 @@ class AutonomyEmulator:
                 if content:
                     ActionPerformer.perform_input(stripped_content)
                     return response
-                    # if content.endswith("\n") or content.endswith("\\n"):
-                    #     pyautogui.press("enter")
 
             if action_type == "finished":
                 return None
-
             return None
 
         except pyautogui.FailSafeException:
@@ -175,10 +172,8 @@ class AutonomyEmulator:
 
             if "start_box" in param_name or "end_box" in param_name:
                 ori_box = param
-                # Remove parentheses and split the string by commas
                 numbers = ori_box.replace("(", "").replace(")", "").split(",")
 
-                # Convert to float and scale by 1000
                 action_inputs[param_name.strip()] = numbers
 
         action = {
@@ -223,6 +218,23 @@ class AutonomyEmulator:
         ## User Instruction
         Click {prompt}
         """
+        messages = [
+            {
+                "role": "system",
+                "content": [
+                    {
+                        "type": "text",
+                        "text": computer_use_prompt
+                    },
+                    {
+                        "type": "image_url",
+                        "image_url": {
+                            "url": f"data:image/png;base64,{encoded_image}"
+                        }
+                    }
+                ]
+            }
+        ]
 
         try:
             client = self._create_connection()
@@ -230,31 +242,15 @@ class AutonomyEmulator:
                 extra_headers={},
                 extra_body={},
                 model="ByteDance-Seed/UI-TARS-1.5-7B",
-                messages=[
-                    {
-                        "role": "system",
-                        "content": [
-                            {
-                                "type": "text",
-                                "text": computer_use_prompt
-                            },
-                            {
-                                "type": "image_url",
-                                "image_url": {
-                                    "url": f"data:image/png;base64,{encoded_image}"
-                                }
-                            }
-                        ]
-                    }
-                ],
-                top_p=None,
-                temperature=None,
-                max_tokens=150,
-                stream=False,
-                seed=None,
-                stop=None,
-                frequency_penalty=None,
-                presence_penalty=None
+                messages=messages,
+                # top_p=None,
+                # temperature=None,
+                # max_tokens=150,
+                # stream=False,
+                # seed=None,
+                # stop=None,
+                # frequency_penalty=None,
+                # presence_penalty=None
             )
 
             result = completion.choices[0].message.content

@@ -1,6 +1,5 @@
 from time import sleep
-import pyautogui
-from openai import OpenAI, APIStatusError
+from openai import OpenAI
 import re
 import ast
 from agent import ActionPerformer
@@ -30,7 +29,6 @@ class Query:
                 if result is None:
                     return
 
-
     def _create_connection(self) -> OpenAI:
         client = OpenAI(
             api_key = f"{self.api_key}",
@@ -45,7 +43,6 @@ class Query:
 
     @staticmethod
     def _parse_action(action_str):
-
         try:
             node = ast.parse(action_str, mode='eval')
 
@@ -86,7 +83,6 @@ class Query:
 
     @staticmethod
     def _parse_to_pyautogui(response):
-        pyautogui_code = f"import pyautogui\nimport time\n"
         try:
             action_dict = response
             action_type = action_dict.get("action_type")
@@ -152,8 +148,6 @@ class Query:
                 if content:
                     ActionPerformer.perform_input(stripped_content)
                     return response
-                    # if content.endswith("\n") or content.endswith("\\n"):
-                    #     pyautogui.press("enter")
 
             if action_type == "finished":
                 return None
@@ -194,10 +188,8 @@ class Query:
 
             if "start_box" in param_name or "end_box" in param_name:
                 ori_box = param
-                # Remove parentheses and split the string by commas
                 numbers = ori_box.replace("(", "").replace(")", "").split(",")
 
-                # Convert to float and scale by 1000
                 action_inputs[param_name.strip()] = numbers
 
         action = {

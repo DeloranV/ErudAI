@@ -110,8 +110,6 @@ class Query:
                 if content:
                     ActionPerformer.perform_input(stripped_content)
                     return response
-                    # if content.endswith("\n") or content.endswith("\\n"):
-                    #     pyautogui.press("enter")
 
             if action_type == "finished":
                 return None
@@ -152,10 +150,8 @@ class Query:
 
             if "start_box" in param_name or "end_box" in param_name:
                 ori_box = param
-                # Remove parentheses and split the string by commas
                 numbers = ori_box.replace("(", "").replace(")", "").split(",")
 
-                # Convert to float and scale by 1000
                 action_inputs[param_name.strip()] = numbers
 
         action = {

@@ -1,13 +1,12 @@
-from pynput import mouse
 from agent import Query
 from graph import Pathfinder
 from pyautogui import size, sleep
-from PySide6.QtWidgets import QDialog, QComboBox, QVBoxLayout, QLineEdit, QLabel, QListWidget, QPushButton, QHBoxLayout, \
-    QRadioButton, QGraphicsOpacityEffect
-from PySide6.QtCore import Qt, QThread, QPropertyAnimation, QEasingCurve, Signal
+from PySide6.QtWidgets import QDialog, QVBoxLayout, QLineEdit, QListWidget, QPushButton, QHBoxLayout, \
+QGraphicsOpacityEffect
+from PySide6.QtCore import QThread, QPropertyAnimation, QEasingCurve, Signal
 from util import Logger
 from .SettingsDialog import SettingsDialog
-from kg.KnowledgeBuilder import kg_extractor
+from kg.KnowledgeBuilder import KgExtractor
 from util import Snapshotter, ImageEncoder
 from autonomous_scanner import AutonomyEmulator
 #(TODO) STRIP API KEYS
@@ -47,7 +46,7 @@ class ScanThread(QThread):
 
     def run(self):
         try:
-            self.kg_builder.extract_GUI_schema(self.clicked_button, self.encoded_image)
+            self.kg_builder.extract_gui_schema(self.clicked_button, self.encoded_image)
         except Exception as e:
             self.error_occurred.emit(str(e))
 
@@ -65,20 +64,14 @@ class QueryThread(QThread):
         self.endpoint_url = endpoint_url
         self.user_input = user_input
         self.logger = logger
-        self.pathfinder = pathfinder
+        self.context_var = pathfinder.get_ui_path(self.user_input)
 
     def run(self):
         try:
-            self.context_var = self.pathfinder.get_ui_path(self.user_input)
             query = Query(api_key=self.endpoint_api_key,
                           base_url=self.endpoint_url,
                           logger=self.logger)
-            # if self.scan:
-            #     prompt = f"""
-            #     Navigate through the entire website starting from the homepage. Explore all accessible pages by following the available links and clicking on buttons with icons.
-            #     If you get lost or stuck, click the 'Comarch BSS' button in the top left corner to return to the homepage. Do not click the links which you've already explored
-            #     """
-            # else:
+
             prompt = f"{self.user_input}. This map of UI elements specifies what view has what button and what the buttons are leading to: [{self.context_var}]"
 
             query.execute(
@@ -101,14 +94,11 @@ class ChatDialog(QDialog):
         self.emulator_thread = None  # To store the running thread
         self.query_thread = None
 
-        # GUI model endpoint
         self.endpoint_url = self.settings_dialog.gui_model_endpoint.text()
         self.endpoint_api_key = self.settings_dialog.gui_api_key.text() or None
 
-        # GUI model deployment
         self.gui_model_deployment = "cloud" if self.settings_dialog.gui_cloud.isChecked() else "local"
 
-        # Neo4j settings
         self.n4j_uri = self.settings_dialog.neo4j_endpoint.text()
         self.n4j_db_name = self.settings_dialog.neo4j_db.text()
         self.n4j_auth = (
@@ -116,14 +106,11 @@ class ChatDialog(QDialog):
             self.settings_dialog.local_password.text()
         )
 
-        # Aura credentials (if used)
         self.aura_username = self.settings_dialog.aura_username.text()
         self.aura_api_key = self.settings_dialog.aura_api_key.text()
 
-        # OpenAI
         self.openai_api_key = self.settings_dialog.openai_api_key.text()
 
-        # Autonomous scanning settings
         if self.settings_dialog.autonomous_scanning_endpoint.isChecked():
             self.autonomous_mode = "endpoint"
             self.autonomous_endpoint_url = self.settings_dialog.endpoint_url_input.text()
@@ -139,30 +126,25 @@ class ChatDialog(QDialog):
             self.autonomous_model_name = None
             self.autonomous_gpt_api_key = None
 
-        # Debug settings
         self.debug_mode = "on" if self.settings_dialog.debug_on.isChecked() else "off"
         self.log_snapshots = self.settings_dialog.log_snapshots.isChecked()
         self.log_encoded = self.settings_dialog.log_encoded.isChecked()
 
-        # Logger
         self.logger = Logger(
             log_snapshot=self.log_snapshots,
             log_encoded_image=self.log_encoded
         )
 
-        # THREAD NEEDS TO BE IN A CONTAINER OR AS A CLASS MEMBER TO NOT GO OUT OF SCOPE
         self.temp_thread_container = [] # TODO
 
         root_layout = QVBoxLayout(self)
         root_layout.setContentsMargins(20, 20, 20, 20)
         root_layout.setSpacing(15)
 
-        # Chat History
         self.chat_box = QListWidget()
         self.chat_box.setObjectName("ChatBox")
         root_layout.addWidget(self.chat_box)
 
-        # Input Row
         input_layout = QHBoxLayout()
         self.user_input_widget = QLineEdit()
         self.user_input_widget.setPlaceholderText("Type your message...")
@@ -171,13 +153,11 @@ class ChatDialog(QDialog):
 
         root_layout.addLayout(input_layout)
 
-        # Buttons Row directly under input field (centered)
         buttons_layout = QHBoxLayout()
 
-        # Add stretch on both sides to center the buttons
         buttons_layout.addStretch()
 
-        button_group = QHBoxLayout()  # Nested layout to keep buttons together
+        button_group = QHBoxLayout()
 
         self.settings_button = QPushButton("Settings")
         self.settings_button.setObjectName("SettingsButton")
@@ -200,14 +180,11 @@ class ChatDialog(QDialog):
         root_layout.addLayout(buttons_layout)
 
     def load_settings(self):
-        # GUI model endpoint
         self.endpoint_url = self.settings_dialog.gui_model_endpoint.text()
         self.endpoint_api_key = self.settings_dialog.gui_api_key.text() or None
 
-        # GUI model deployment
         self.gui_model_deployment = "cloud" if self.settings_dialog.gui_cloud.isChecked() else "local"
 
-        # Neo4j settings
         self.n4j_uri = self.settings_dialog.neo4j_endpoint.text()
         self.n4j_db_name = self.settings_dialog.neo4j_db.text()
         self.n4j_auth = (
@@ -215,14 +192,11 @@ class ChatDialog(QDialog):
             self.settings_dialog.local_password.text()
         )
 
-        # Aura credentials
         self.aura_username = self.settings_dialog.aura_username.text()
         self.aura_api_key = self.settings_dialog.aura_api_key.text()
 
-        # OpenAI
         self.openai_api_key = self.settings_dialog.openai_api_key.text()
 
-        # Autonomous scanning settings
         if self.settings_dialog.autonomous_scanning_endpoint.isChecked():
             self.autonomous_mode = "endpoint"
             self.autonomous_endpoint_url = self.settings_dialog.endpoint_url_input.text()
@@ -242,12 +216,10 @@ class ChatDialog(QDialog):
             self.autonomous_model_name = None
             self.autonomous_gpt_api_key = None
 
-        # Debug settings
         self.debug_mode = "on" if self.settings_dialog.debug_on.isChecked() else "off"
         self.log_snapshots = self.settings_dialog.log_snapshots.isChecked()
         self.log_encoded = self.settings_dialog.log_encoded.isChecked()
 
-        # Logger (recreate if needed)
         self.logger = Logger(
             log_snapshot=self.log_snapshots,
             log_encoded_image=self.log_encoded
@@ -267,7 +239,6 @@ class ChatDialog(QDialog):
         self.chat_box.addItem(item_text)
         self.chat_box.scrollToBottom()
 
-        # Animation effect
         item = self.chat_box.item(self.chat_box.count() - 1)
         item_widget = self.chat_box.itemWidget(item)
         if item_widget:
@@ -277,7 +248,7 @@ class ChatDialog(QDialog):
             fade.setDuration(400)
             fade.setStartValue(0)
             fade.setEndValue(1)
-            fade.setEasingCurve(QEasingCurve.OutQuad)
+            fade.setEasingCurve(QEasingCurve.Type.OutQuad)
             fade.start()
 
     def extract_view(self):
@@ -300,7 +271,6 @@ class ChatDialog(QDialog):
             self.load_settings()
 
             if self.autonomous_scanning_in_progress:
-                # Abort the scan
                 if self.emulator_thread and self.emulator_thread.isRunning():
                     self.emulator_thread.terminate()
                     self.emulator_thread.wait()
@@ -310,7 +280,6 @@ class ChatDialog(QDialog):
                 return
 
             if self.autonomous_mode in ['endpoint', 'gpt']:
-                # Start autonomous scanning
                 if self.autonomous_mode == 'endpoint':
                     auth = [self.autonomous_endpoint_url,
                             self.autonomous_endpoint_api_key,
@@ -326,8 +295,7 @@ class ChatDialog(QDialog):
                 self.autonomous_scanning_in_progress = True
                 self.scan_button.setText("Stop")
             else:
-                # Manual scan mode
-                self.kg_builder = kg_extractor(self.openai_api_key, self.n4j_uri, self.n4j_auth)
+                self.kg_builder = KgExtractor(self.openai_api_key, self.n4j_uri, self.n4j_auth)
                 self.showMinimized()
                 sleep(2)
                 encoded_image = ImageEncoder.encode(Snapshotter.snapshot())
@@ -343,7 +311,6 @@ class ChatDialog(QDialog):
     def on_submit(self):
         try:
             self.load_settings()
-
             if self.query_thread is not None:
                 if self.query_thread.isRunning():
                     self.query_thread.terminate()
@@ -355,7 +322,6 @@ class ChatDialog(QDialog):
                 self.send_button.setText("Send")
                 return
 
-            # Start a new thread
             user_input = self.user_input_widget.text()
             self.add_chat_message("You", user_input)
             self.pathfinder = Pathfinder(self.n4j_uri, self.n4j_auth, self.n4j_db_name, self.openai_api_key)

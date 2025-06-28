@@ -1,5 +1,4 @@
 from openai import OpenAI
-from util import Snapshotter, ImageEncoder
 
 class HelperGPT:
     def __init__(self, openai_api: str, logger=None):
@@ -38,28 +37,30 @@ class HelperGPT:
         
         Let's think step by step. 
         """
+        messages = [
+            {
+                "role": "system",
+                "content": computer_use_prompt
+            },
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "image_url",
+                        "image_url": {
+                            "url": f"data:image/png;base64,{encoded_image}"
+                        }
+                    }
+                ]
+            }
+        ]
+
         client = self._create_connection()
         completion = client.chat.completions.create(
             extra_headers={},
             extra_body={},# 4.1
             model="gpt-4o-mini",
-            messages=[
-                {
-                    "role": "system",
-                    "content": computer_use_prompt
-                },
-                {
-                    "role": "user",
-                    "content": [
-                        {
-                            "type": "image_url",
-                            "image_url": {
-                                "url": f"data:image/png;base64,{encoded_image}"
-                            }
-                        }
-                    ]
-                }
-            ],
+            messages=messages
         )
         result = completion.choices[0].message.content
         print("-----GPT-----\n", result.strip())

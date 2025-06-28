@@ -1,8 +1,7 @@
 from openai import OpenAI
-from util import Snapshotter, ImageEncoder
 
 class HelperEndpoint:
-    def __init__(self, base_url: str, api_key: str | None, model: str, logger=None):
+    def __init__(self, base_url: str, model: str, logger=None):
         self.base_url = base_url
         self.api_key = None #(TODO) CHANGE THIS
         self.model = model
@@ -41,29 +40,30 @@ class HelperEndpoint:
         
         Let's think step by step. 
         """
+        messages = [
+            {
+                "role": "user",
+                "content": computer_use_prompt
+            },
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "image_url",
+                        "image_url": {
+                            "url": f"data:image/png;base64,{encoded_image}"
+                        }
+                    }
+                ]
+            }
+        ]
+
         client = self._create_connection()
         completion = client.chat.completions.create(
             extra_headers={},
             extra_body={},
             model=self.model,
-            messages=[
-                {
-                    "role": "user",
-                    "content": computer_use_prompt
-                },
-                {
-                    "role": "user",
-                    "content": [
-                        {
-                            "type": "image_url",
-                            "image_url": {
-                                "url": f"data:image/png;base64,{encoded_image}"
-                            }
-                        }
-                    ]
-                }
-            ]
-            ,
+            messages=messages
         )
         result = completion.choices[0].message.content
         print("-----Helper Model-----\n", result.strip())

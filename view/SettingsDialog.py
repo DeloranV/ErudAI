@@ -13,25 +13,20 @@ class SettingsDialog(QDialog):
         self.setWindowTitle("Settings")
         self.setMinimumWidth(400)
 
-        # Main layout of the dialog
         outer_layout = QVBoxLayout(self)
 
-        # Create a scroll area
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         outer_layout.addWidget(scroll)
 
-        # Inner widget and layout for scroll content
         scroll_content = QWidget()
         layout = QVBoxLayout(scroll_content)
         scroll.setWidget(scroll_content)
 
-        # GUI model endpoint
         layout.addWidget(QLabel("Address of GUI model endpoint:"))
         self.gui_model_endpoint = QLineEdit()
         layout.addWidget(self.gui_model_endpoint)
 
-        # GUI model deployment toggle
         layout.addWidget(QLabel("GUI model deployed on:"))
         self.gui_local = QRadioButton("Local")
         self.gui_cloud = QRadioButton("Cloud")
@@ -43,23 +38,19 @@ class SettingsDialog(QDialog):
         gui_radio_layout.addWidget(self.gui_cloud)
         layout.addLayout(gui_radio_layout)
 
-        # GUI model API key
         self.gui_api_key_label = QLabel("GUI model API key:")
         self.gui_api_key = QLineEdit()
         layout.addWidget(self.gui_api_key_label)
         layout.addWidget(self.gui_api_key)
 
-        # Neo4j endpoint
         layout.addWidget(QLabel("Address of Neo4j endpoint:"))
         self.neo4j_endpoint = QLineEdit()
         layout.addWidget(self.neo4j_endpoint)
 
-        # Neo4j DB name
         layout.addWidget(QLabel("Neo4j database name:"))
         self.neo4j_db = QLineEdit()
         layout.addWidget(self.neo4j_db)
 
-        # Neo4j deployment toggle
         layout.addWidget(QLabel("Neo4j deployed on:"))
         self.neo4j_local = QRadioButton("Local")
         self.neo4j_aura = QRadioButton("Aura Instance")
@@ -71,7 +62,6 @@ class SettingsDialog(QDialog):
         neo4j_radio_layout.addWidget(self.neo4j_aura)
         layout.addLayout(neo4j_radio_layout)
 
-        # Aura credentials
         self.aura_username_label = QLabel("Aura username:")
         self.aura_username = QLineEdit()
         layout.addWidget(self.aura_username_label)
@@ -82,7 +72,6 @@ class SettingsDialog(QDialog):
         layout.addWidget(self.aura_api_key_label)
         layout.addWidget(self.aura_api_key)
 
-        # Local Neo4j credentials
         self.local_username_label = QLabel("Local Neo4j username:")
         self.local_username = QLineEdit()
         layout.addWidget(self.local_username_label)
@@ -90,16 +79,14 @@ class SettingsDialog(QDialog):
 
         self.local_password_label = QLabel("Local Neo4j password:")
         self.local_password = QLineEdit()
-        self.local_password.setEchoMode(QLineEdit.Password)
+        self.local_password.setEchoMode(QLineEdit.EchoMode.Password)
         layout.addWidget(self.local_password_label)
         layout.addWidget(self.local_password)
 
-        # OpenAI API key
         layout.addWidget(QLabel("OpenAI API key:"))
         self.openai_api_key = QLineEdit()
         layout.addWidget(self.openai_api_key)
 
-        # Autonomous scanning toggle
         self.autonomous_scanning_label = QLabel("Toggle autonomous scanning movement (experimental):")
         self.autonomous_scanning_endpoint = QRadioButton("Endpoint")
         self.autonomous_scanning_gpt = QRadioButton("GPT")
@@ -117,7 +104,6 @@ class SettingsDialog(QDialog):
         autonomous_layout.addWidget(self.autonomous_scanning_off)
         layout.addLayout(autonomous_layout)
 
-        # Container for autonomous scanning mode inputs
         self.endpoint_url_label = QLabel("Endpoint URL:")
         self.endpoint_url_input = QLineEdit()
         layout.addWidget(self.endpoint_url_label)
@@ -138,15 +124,12 @@ class SettingsDialog(QDialog):
         layout.addWidget(self.gpt_api_key_label)
         layout.addWidget(self.gpt_api_key_input)
 
-        # Hook up visibility toggles
         self.autonomous_scanning_endpoint.toggled.connect(self.update_autonomous_scanning_fields)
         self.autonomous_scanning_gpt.toggled.connect(self.update_autonomous_scanning_fields)
         self.autonomous_scanning_off.toggled.connect(self.update_autonomous_scanning_fields)
 
-        # Initialize visibility
         self.update_autonomous_scanning_fields()
 
-        # Debug mode toggle
         layout.addWidget(QLabel("Debug mode:"))
         self.debug_on = QRadioButton("On")
         self.debug_off = QRadioButton("Off")
@@ -158,7 +141,6 @@ class SettingsDialog(QDialog):
         debug_layout.addWidget(self.debug_off)
         layout.addLayout(debug_layout)
 
-        # Debug options
         self.log_snapshots_label = QLabel("Log taken snapshots:")
         self.log_snapshots = QRadioButton("On")
         self.log_snapshots_off = QRadioButton("Off")
@@ -183,7 +165,6 @@ class SettingsDialog(QDialog):
         encoded_layout.addWidget(self.log_encoded_off)
         layout.addLayout(encoded_layout)
 
-        # Save/Close buttons
         button_layout = QHBoxLayout()
         self.save_button = QPushButton("Save")
         self.close_button = QPushButton("Close")
@@ -192,7 +173,6 @@ class SettingsDialog(QDialog):
         button_layout.addWidget(self.close_button)
         layout.addLayout(button_layout)
 
-        # Connect radio logic
         self.gui_cloud.toggled.connect(self.toggle_gui_api_key)
         self.neo4j_aura.toggled.connect(self.toggle_aura_fields)
         self.neo4j_local.toggled.connect(self.toggle_aura_fields)
@@ -209,7 +189,6 @@ class SettingsDialog(QDialog):
         is_endpoint = self.autonomous_scanning_endpoint.isChecked()
         is_gpt = self.autonomous_scanning_gpt.isChecked()
 
-        # Endpoint fields visibility
         self.endpoint_url_label.setVisible(is_endpoint)
         self.endpoint_url_input.setVisible(is_endpoint)
         self.endpoint_api_key_label.setVisible(is_endpoint)
@@ -217,7 +196,6 @@ class SettingsDialog(QDialog):
         self.endpoint_model_name_label.setVisible(is_endpoint)
         self.endpoint_model_name_input.setVisible(is_endpoint)
 
-        # GPT fields visibility
         self.gpt_api_key_label.setVisible(is_gpt)
         self.gpt_api_key_input.setVisible(is_gpt)
 
@@ -271,18 +249,15 @@ class SettingsDialog(QDialog):
                 else "off"
             ),
 
+            "autonomous_endpoint_url": self.endpoint_url_input.text(),
+            "autonomous_endpoint_api_key": self.endpoint_api_key_input.text(),
+            "autonomous_model_name": self.endpoint_model_name_input.text(),
+            "autonomous_gpt_api_key": self.gpt_api_key_input.text(),
+
             "debug": "on" if self.debug_on.isChecked() else "off",
             "log_snapshots": "on" if self.log_snapshots.isChecked() else "off",
             "log_encoded": "on" if self.log_encoded.isChecked() else "off",
         }
-
-        # Autonomous scanning subfields
-
-        data["autonomous_endpoint_url"] = self.endpoint_url_input.text()
-        data["autonomous_endpoint_api_key"] = self.endpoint_api_key_input.text()
-        data["autonomous_model_name"] = self.endpoint_model_name_input.text()
-
-        data["autonomous_gpt_api_key"] = self.gpt_api_key_input.text()
 
         with open(SETTINGS_FILE, "w") as f:
             json.dump(data, f, indent=2)
@@ -317,7 +292,6 @@ class SettingsDialog(QDialog):
             self.autonomous_scanning_off.setChecked(True)
 
         self.update_autonomous_scanning_fields()
-
 
         self.endpoint_url_input.setText(data.get("autonomous_endpoint_url", ""))
         self.endpoint_api_key_input.setText(data.get("autonomous_endpoint_api_key", ""))

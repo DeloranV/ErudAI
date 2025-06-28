@@ -1,20 +1,12 @@
-import os, base64
-import time
-
-from langchain_core.documents import Document
-from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_huggingface import HuggingFaceEmbeddings
-from langchain_chroma import Chroma
 import neo4j
 import json
-from openai import OpenAI, embeddings
-import asyncio
+from openai import OpenAI
 DB_NAME = "neo4j"
 
 # UNIFY INTO ONE PROMPT AND TELL IT TO CREATE TWO SEPARATE JSON'S ? (ONE FOR UI ONE FOR KNOWLEDGE)
 # IF USING SPLIT PROMPTS - SEND BOTH ASYNCHRONOUSLY !!!
 
-class kg_extractor:
+class KgExtractor:
     def __init__(self, openai_api, n4j_uri, n4j_auth):
         self.node_cache = {"response_json": None, "embedded_json": None}
         self.openai_api = openai_api
@@ -24,9 +16,9 @@ class kg_extractor:
         response, embed = self.extract_view(encoded_image)
         self.cache_view(response, embed)
 
-    def extract_GUI_schema(self, clicked_button_text, encoded_image):
+    def extract_gui_schema(self, clicked_button_text, encoded_image):
         response, embed = self.extract_view(encoded_image)
-        self.GUI_insertion(response, embed, clicked_button_text)
+        self.gui_insertion(response, embed, clicked_button_text)
 
     def extract_view(self, encoded_image):
         print("GUI extraction started")
@@ -58,26 +50,28 @@ class kg_extractor:
         Ignore system tray.
         Replace any non-english characters with english alphabet.
         """
+        messages = [
+            {
+                "role": "developer",
+                "content": PROMPT_GUI
+            },
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "image_url",
+                        "image_url": {
+                            "url": f"data:image/png;base64,{encoded_image}"
+                        }
+                    }
+                ]
+            }
+        ]
+
         client = OpenAI(api_key=self.openai_api)
         completion = client.chat.completions.create(
             model="gpt-4.1",
-            messages=[
-                {
-                    "role": "developer",
-                    "content": f"{PROMPT_GUI}"
-                },
-                {
-                    "role": "user",
-                    "content": [
-                        {
-                            "type": "image_url",
-                            "image_url": {
-                                "url": f"data:image/png;base64,{encoded_image}"
-                            }
-                        }
-                    ]
-                }
-            ]
+            messages=messages
         )
 
         response = completion.choices[0].message.content
@@ -140,7 +134,7 @@ class kg_extractor:
         self.node_cache["response_json"] = response
         self.node_cache["embedded_json"] = embed
 
-    def GUI_insertion(self, node1, embed1, clicked_button):
+    def gui_insertion(self, node1, embed1, clicked_button):
         view_name1 = node1['view_name']
         view_url1 = node1['view_url']
 
@@ -153,7 +147,6 @@ class kg_extractor:
             cached_view_name = cached_json["view_name"]
             cached_view_url = cached_json["view_url"]
 
-        # Insert new View with embedding
         with self.driver.session(database=DB_NAME) as session:
             for item in node1['elements']:
                 query = f'''
@@ -182,84 +175,3 @@ class kg_extractor:
             MERGE (e)-[:LEADS_TO]->(v)
             '''
             session.run(query)
-
-    def extract_knowledge_schema(self, encoded_image):
-        print("knowledge extraction started")
-        PROMPT_TEXT = """
-        You are a knowledge builder agent, extracting useful information from screenshots of software.
-        Useful information is anything that's not related to the software and GUI itself. In this case, it would be email contents.
-        This knowledge will be used to build a concrete vector knowledge base.
-
-        Respond in pure extracted text format, so that it can be inserted as a document into a vector database.
-
-        Ignore the UI elements. Take into consideration only useful information.
-        Replace any non-english characters with english alphabet.
-        """
-        client = OpenAI(api_key=self.openai_api)
-        completion = client.chat.completions.create(
-            model="gpt-4.1",
-            messages=[
-                {
-                    "role": "developer",
-                    "content": f"{PROMPT_TEXT}"
-                },
-                {
-                    "role": "user",
-                    "content": [
-                        {
-                            "type": "image_url",
-                            "image_url": {
-                                "url": f"data:image/png;base64,{encoded_image}"
-                            }
-                        }
-                    ]
-                }
-            ]
-        )
-
-        response = completion.choices[0].message.content
-
-        text_splitter = RecursiveCharacterTextSplitter(
-            chunk_size=1000, chunk_overlap=200, add_start_index=True
-        )
-
-        all_splits = text_splitter.split_text(response)
-
-        embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-mpnet-base-v2")
-
-        vector_store = Chroma(
-            collection_name="knowledge_base",
-            embedding_function=embeddings,
-            persist_directory="./vector_knowledge_base"
-        )
-
-        ids = vector_store.add_texts(all_splits)
-
-    # def vector_contents(self):
-    #     embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-mpnet-base-v2")
-    #
-    #     vector_store = Chroma(
-    #         collection_name="knowledge_base",
-    #         embedding_function=embeddings,
-    #         persist_directory="./vector_knowledge_base"
-    #     )
-    #
-    #     results = vector_store.similarity_search(
-    #         "When is my interview scheduled?"
-    #     )
-    #
-    #     RAGContext = '\n'.join(result.page_content for result in results)  # CONTEXT READY TO PARSE TO THE MODEL
-    #     print(RAGContext)
-
-
-# async def main():
-#     # CLEANER WAY THAN GATHER - USE asyncio ONLY IN THE IO-BLOCKING FRAGMENTS - OPENAI API CALLS
-#     kg_build = kg_extractor()
-#     await asyncio.gather(
-#         asyncio.to_thread(kg_build.extract_GUI_schema),
-#         asyncio.to_thread(kg_build.extract_knowledge_schema)
-#     )
-#     kg_build.vector_contents()
-
-
-# asyncio.run(main())
