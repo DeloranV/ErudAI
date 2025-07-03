@@ -58,24 +58,25 @@ class QueryThread(QThread):
                  endpoint_url,
                  user_input,
                  pathfinder,
-                 logger = None):
+                 logger=None):
         super().__init__()
         self.endpoint_api_key = endpoint_api_key
         self.endpoint_url = endpoint_url
         self.user_input = user_input
+        self.pathfinder = pathfinder
         self.logger = logger
-        self.context_var = pathfinder.get_ui_path(self.user_input)
 
     def run(self):
         try:
+            # Compute context_var inside the thread to avoid blocking the UI
+            context_var = self.pathfinder.get_ui_path(self.user_input)
             query = Query(api_key=self.endpoint_api_key,
                           base_url=self.endpoint_url,
                           logger=self.logger)
 
-            prompt = f"{self.user_input}. This map of UI elements specifies what view has what button and what the buttons are leading to: [{self.context_var}]"
+            prompt = f"{self.user_input}. This map of UI elements specifies what view has what button and what the buttons are leading to: [{context_var}]"
 
-            query.execute(
-                prompt=prompt)
+            query.execute(prompt=prompt)
         except Exception as e:
             self.error_occurred.emit(str(e))
 
