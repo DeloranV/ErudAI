@@ -25,7 +25,8 @@ class AutonomyEmulator:
         self.api_key = api_key
         self.multistep = multistep
         self.logger = logger
-        self.history = ["Customers", "Accounts"]
+        self.history = []
+        self.kg_extractor = None
 
         if connect_kg:
             self.kg_extractor = KgExtractor(kg_openai_api, kg_n4j_uri, kg_n4j_auth)
@@ -60,7 +61,7 @@ class AutonomyEmulator:
 
                 if self.kg_extractor:
                     encoded_2 = ImageEncoder.encode(Snapshotter.snapshot(self.logger), logger=self.logger)
-                    self.kg_extractor.extract_gui_schema(result[0], encoded_2)
+                    self.kg_extractor.extract_gui_schema(next_click, encoded_2)
 
                 print(self.history)
                 print("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
