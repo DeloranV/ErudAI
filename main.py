@@ -2,7 +2,6 @@ import os
 from PySide6.QtWidgets import QApplication
 from view import ChatDialog
 
-# TODO TYPE-HINTS
 if __name__ == "__main__":
     directory = "logs"
 

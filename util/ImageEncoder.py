@@ -5,12 +5,11 @@ class ImageEncoder:
     @staticmethod
     def encode(source: BytesIO, logger = None) -> str:
         """
-        Method for encoding a given image
+        Encodes a given BytesIO image with base64 encoding
 
-        Returns the encoded image in the form of a string
-
-        Args:
-            source - Source image contained in a BytesIO buffer
+        :param source: Image to encode given as a BytesIO object
+        :param logger: Optional logger object to pass
+        :return: B64 encoded image in the form of a string
         """
         encoded = base64.b64encode(source.getvalue()).decode("utf-8")
 

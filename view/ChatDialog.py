@@ -1,9 +1,8 @@
-import threading
 from agent import Query
 from graph import Pathfinder
-from pyautogui import size, sleep
+from pyautogui import sleep
 from PySide6.QtWidgets import QDialog, QVBoxLayout, QLineEdit, QListWidget, QPushButton, QHBoxLayout, \
-QGraphicsOpacityEffect
+QGraphicsOpacityEffect, QApplication
 from PySide6.QtCore import QThread, QPropertyAnimation, QEasingCurve, Signal
 from util import Logger
 from .SettingsDialog import SettingsDialog
@@ -92,7 +91,9 @@ class ChatDialog(QDialog):
         self.settings_dialog = SettingsDialog(self)
 
         self.autonomous_scanning_in_progress = False
-        self.emulator_thread = None  # To store the running thread
+        self.autonomy_emulator_thread = None  # To store the running thread
+        self.kg_init_thread = None
+        self.scan_thread = None
         self.query_thread = None
 
         self.endpoint_url = self.settings_dialog.gui_model_endpoint.text().strip()
@@ -135,9 +136,6 @@ class ChatDialog(QDialog):
             log_snapshot=self.log_snapshots,
             log_encoded_image=self.log_encoded
         )
-
-        self.threads = [] # switch to concurrent.futures.ThreadPoolExecutor?
-        self._lock = threading.Lock() # TODO - threads held in their respective instance variables
 
         root_layout = QVBoxLayout(self)
         root_layout.setContentsMargins(20, 20, 20, 20)
@@ -231,6 +229,9 @@ class ChatDialog(QDialog):
         )
 
     def open_settings(self) -> None:
+        """
+        Method responsible for opening the settings dialog
+        """
         self.settings_dialog.exec()
 
     def update_selection_buttons(self) -> None:
@@ -240,6 +241,12 @@ class ChatDialog(QDialog):
             self.program_option_mode = "Action"
 
     def add_chat_message(self, sender: str, message: str) -> None:
+        """
+        Method responsible for rendering a sent message inside of chat history
+
+        :param sender: Name of the sender to be displayed e.g. SYSTEM or user
+        :param message: Message to be displayed
+        """
         item_text = f"{sender}: {message}"
         self.chat_box.addItem(item_text)
         self.chat_box.scrollToBottom()
@@ -257,28 +264,32 @@ class ChatDialog(QDialog):
             fade.start()
 
     def extract_view(self) -> None:
+        """
+        Method responsible for initiating the process of a view extraction
+        """
         self.load_settings()
         try:
             clicked_button = self.user_input_widget.text().strip()
             self.showMinimized()
             sleep(2)
             encoded_img = ImageEncoder.encode(Snapshotter.snapshot())
-            scan_thread = ScanThread(self.kg_builder ,clicked_button, encoded_img)
-            self.threads.append(scan_thread)
-            scan_thread.start()
-            scan_thread.error_occurred.connect(lambda msg: self.add_chat_message("SYSTEM", f"Error during view extraction thread: {msg}"))
-            scan_thread.finished.connect(self.scan_callback)
+            self.scan_thread = ScanThread(self.kg_builder ,clicked_button, encoded_img)
+            self.scan_thread.start()
+            self.scan_thread.error_occurred.connect(lambda msg: self.add_chat_message("SYSTEM", f"Error during view extraction thread: {msg}"))
+            self.scan_thread.finished.connect(self.scan_callback)
         except Exception as e:
             self.add_chat_message("SYSTEM", f"There was an error during view extraction: {str(e)}")
 
     def on_scan_toggle(self) -> None:
+        """
+        Method responsible for initiating program scanning mode
+        """
         try:
             self.load_settings()
-
             if self.autonomous_scanning_in_progress:
-                if self.emulator_thread and self.emulator_thread.isRunning():
-                    self.emulator_thread.terminate()
-                    self.emulator_thread.wait()
+                if self.autonomy_emulator_thread and self.autonomy_emulator_thread.isRunning():
+                    self.autonomy_emulator_thread.terminate()
+                    self.autonomy_emulator_thread.wait()
                 self.autonomous_scanning_in_progress = False
                 self.scan_button.setText("Begin Scan")
                 self.add_chat_message("SYSTEM", "Scan aborted")
@@ -292,10 +303,9 @@ class ChatDialog(QDialog):
                 else:
                     auth = [self.autonomous_gpt_api_key]
 
-                self.emulator_thread = AutonomyEmulatorThread(self.autonomous_mode, auth)
+                self.autonomy_emulator_thread = AutonomyEmulatorThread(self.autonomous_mode, auth)
                 self.showMinimized()
-                self.threads.append(self.emulator_thread)
-                self.emulator_thread.start()
+                self.autonomy_emulator_thread.start()
 
                 self.autonomous_scanning_in_progress = True
                 self.scan_button.setText("Stop")
@@ -314,6 +324,9 @@ class ChatDialog(QDialog):
             self.add_chat_message("SYSTEM", f"There was an error during scanning: {str(e)}")
 
     def on_submit(self) -> None:
+        """
+        Method responsible for initiating an action-type query
+        """
         try:
             self.load_settings()
             if self.query_thread is not None:
@@ -344,7 +357,6 @@ class ChatDialog(QDialog):
             )
             self.query_thread.finished.connect(self.thread_callback)
             self.query_thread.start()
-            self.threads.append(self.query_thread)
             self.showMinimized()
             self.send_button.setText("Stop")
 
@@ -352,12 +364,21 @@ class ChatDialog(QDialog):
             self.add_chat_message("SYSTEM", f"There was an error during action submit: {str(e)}")
 
     def maximize_callback(self) -> None:
-        self.showMaximized()
-        center_x = size()[0] / 5
-        center_y = size()[1] / 8
-        self.move(center_x, center_y)
+        """
+        Callback method which maximizes back the window in center of the screen
+        """
+        self.showNormal()
+        screen = QApplication.primaryScreen()
+        screen_rect = screen.availableGeometry()
+        window_size = self.frameGeometry()
+        center_point = screen_rect.center()
+        window_size.moveCenter(center_point)
+        self.move(window_size.topLeft())
 
     def cache_callback(self) -> None:
+        """
+        Callback method which prepares the program for the second-stage of scanning
+        """
         self.add_chat_message("SYSTEM",
                               "Click a button leading to the next view, then input its label and press 'Extract view'")
         self.user_input_widget.setPlaceholderText("Type the label of the clicked button")
@@ -368,6 +389,9 @@ class ChatDialog(QDialog):
         self.autonomous_scanning_in_progress = False
 
     def scan_callback(self) -> None:
+        """
+        Callback method which reverts the program back from scanning mode to default state
+        """
         self.scan_button.clicked.disconnect()
         self.scan_button.clicked.connect(self.on_scan_toggle)
         self.maximize_callback()
@@ -378,6 +402,9 @@ class ChatDialog(QDialog):
         self.autonomous_scanning_in_progress = False
 
     def thread_callback(self) -> None:
+        """
+        Callback method for finished threads
+        """
         self.maximize_callback()
         self.send_button.setText("Send")
         self.query_thread = None

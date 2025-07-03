@@ -15,6 +15,11 @@ class KgExtractor:
         self.driver = neo4j.GraphDatabase.driver(n4j_uri, auth=n4j_auth)
 
     def initialize_cache(self, encoded_image: str) -> None:
+        """
+        Method responsible for caching initial view of a single scan
+
+        :param encoded_image: B64 Encoded image of the initial view in the form of a string
+        """
         response, embed = self.extract_view(encoded_image)
         self.cache_view(response, embed)
 
@@ -96,6 +101,12 @@ class KgExtractor:
         # }}
 
     def check_existing(self, embedding: list[float]) -> str | None:
+        """
+        Checks whether a view already exists in a database, based on the given view embedding which gets checked
+        against embeddings stored in the graph database. Cosine similarity is used for this purpose.
+
+        :param embedding: Vector embedding representing the view to be checked against the database given as a list of floats
+        """
         with self.driver.session(database=DB_NAME) as session:
             query = f'''
             CALL {{
@@ -128,6 +139,12 @@ class KgExtractor:
             return None
 
     def cache_view(self, response, embed: list[float]) -> None:
+        """
+        Method responsible for caching a new, previously unscanned view
+
+        :param response:
+        :param embed: Vector embedding representing the view to be cached given as a list of floats
+        """
         if self.check_existing(embed):
             json_format = self.check_existing(embed)
             self.node_cache["response_json"] = json.loads(json_format)
@@ -136,6 +153,14 @@ class KgExtractor:
         self.node_cache["embedded_json"] = embed
 
     def gui_insertion(self, node1, embed1: list[float], clicked_button: str) -> None:
+        """
+        Method responsible for inserting into the graph database a cached view along with the current view and linking
+        both with a :LEADS_TO relationship. Each view is also linked to its respective UI elements with a :HAS relationship
+
+        :param node1:
+        :param embed1: Vector embedding representing the view to be linked with the cached view
+        :param clicked_button: Label on a button which led from the cached view into the given view given in the form of a string
+        """
         view_name1 = node1['view_name']
         view_url1 = node1['view_url']
 

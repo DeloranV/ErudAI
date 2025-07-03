@@ -8,6 +8,14 @@ class Planner:
         self.logger = logger
 
     def plan_route(self, user_prompt: str, database_nodes: str) -> Any:
+        """
+        Method responsible for sending a query to a helper model, which is given a list of nodes extracted from the
+        graph database along with a user query and approximates which view will likely be the destination of a given action
+
+        :param user_prompt: Action prompt given by the user in the form of a string
+        :param database_nodes: All nodes - comma separated, extracted from a graph DB, given in the form of a string
+        :return: A JSON deserialized into a python dictionary containing ['start_node'] and ['end_node'] keys with their respective values
+        """
         client = OpenAI(api_key=self.openAI_api)
 
         if self.logger is not None:

@@ -20,6 +20,11 @@ class Query:
         self.scan = scan
 
     def execute(self, prompt: str) -> None:
+        """
+        Method responsible for executing the entire pipeline of an action-type prompt
+
+        :param prompt: Action prompt given by the user in the form of a string
+        """
         sleep(1)    # FOR HIDING CHAT WINDOW
         if self.multistep:
             while True: # DO-WHILE LOOP CONFORMING WITH PEP
@@ -30,6 +35,11 @@ class Query:
                     return
 
     def _create_connection(self) -> OpenAI:
+        """
+        Method responsible for creating an OpenAI API client, based on the api key and url of the endpoint
+
+        :return: OpenAI client based upon properties of this Query object
+        """
         client = OpenAI(
             api_key = f"{self.api_key}",
             base_url = self.base_url,
@@ -198,11 +208,11 @@ class Query:
 
     def _send(self, prompt: str, encoded_image: str) -> dict[str, str | None | dict] | None | tuple[str, None]:
         """
-        Sends the request to the model on behalf of the user
-        Returns the coordinates of the queried element
-        Args:
-            prompt - Prompt query to send to the model
-            encoded_image - Encoded snapshot given in the form of a string
+        Method responsible for getting the next action needed for parsing, which gets proposed by a vision-language model such as UI Tars
+
+        :param prompt: Action prompt given by the user in the form of a string
+        :param encoded_image: B64 encoded screenshot of the current screen
+        :return: Next action or None if goal has been reached or model is waiting for a GUI shift to complete
         """
         computer_use_prompt = f"""
         You are a GUI agent. You are given a task, with screenshots. You need to perform the next action to complete the task.
