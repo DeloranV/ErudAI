@@ -42,7 +42,7 @@ class Logger:
 
     def log_encoded_img_data(self, data: str) -> None:
         """
-        Method responsible for logging base64 encoded image data inside of a .txt file named with the timestamp of logging
+        Method responsible for logging base64 encoded image data inside a .txt file named with the timestamp of logging
 
         :param data: Image data encoded in a base64 string
         """

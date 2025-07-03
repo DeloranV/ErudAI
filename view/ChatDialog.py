@@ -100,6 +100,10 @@ class ChatDialog(QDialog):
         self.scan_thread = None
         self.query_thread = None
 
+        self.autonomy_kg = None
+        self.kg_builder = None
+        self.pathfinder = None
+
         self.endpoint_url = self.settings_dialog.gui_model_endpoint.text().strip()
         self.endpoint_api_key = self.settings_dialog.gui_api_key.text().strip() or None
 
@@ -237,12 +241,6 @@ class ChatDialog(QDialog):
         Method responsible for opening the settings dialog
         """
         self.settings_dialog.exec()
-
-    def update_selection_buttons(self) -> None:
-        if self.radio_message.isChecked():
-            self.program_option_mode = "Message"
-        elif self.radio_action.isChecked():
-            self.program_option_mode = "Action"
 
     def add_chat_message(self, sender: str, message: str) -> None:
         """
