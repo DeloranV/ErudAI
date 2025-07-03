@@ -13,9 +13,13 @@ from autonomous_scanner import AutonomyEmulator
 class AutonomyEmulatorThread(QThread):
     def __init__(self,
                  autonomous_mode,
-                 auth):
+                 auth,
+                 connect_kg = False,
+                 kg_openai_api = None,
+                 kg_n4j_uri = None,
+                 kg_n4j_auth = None):
         super().__init__()
-        self.emulator = AutonomyEmulator(autonomous_mode, auth)
+        self.emulator = AutonomyEmulator(autonomous_mode, auth, connect_kg, kg_openai_api, kg_n4j_uri, kg_n4j_auth)
 
     def run(self):
         self.emulator.execute()
@@ -303,7 +307,18 @@ class ChatDialog(QDialog):
                 else:
                     auth = [self.autonomous_gpt_api_key]
 
-                self.autonomy_emulator_thread = AutonomyEmulatorThread(self.autonomous_mode, auth)
+                self.autonomy_kg = self.settings_dialog.knowledge_on.isChecked()
+
+                if self.autonomy_kg:
+                    self.autonomy_emulator_thread = AutonomyEmulatorThread(self.autonomous_mode,
+                                                                           auth,
+                                                                           self.autonomy_kg,
+                                                                           self.openai_api_key,
+                                                                           self.n4j_uri,
+                                                                           self.n4j_auth)
+                else:
+                    self.autonomy_emulator_thread = AutonomyEmulatorThread(self.autonomous_mode, auth, self.autonomy_kg)
+
                 self.showMinimized()
                 self.autonomy_emulator_thread.start()
 

@@ -7,11 +7,16 @@ from agent import ActionPerformer
 from util import ImageEncoder, Snapshotter
 from .helper_gpt import HelperGPT
 from .helper_local import HelperEndpoint
+from kg import KgExtractor
 
 class AutonomyEmulator:
     def __init__(self,
                  helper_type: str,  # TODO ENUM HELPER TYPES
                  helper_auth: str,
+                 connect_kg: bool = False,
+                 kg_openai_api = None,
+                 kg_n4j_uri = None,
+                 kg_n4j_auth = None,
                  base_url: str = "http://127.0.0.1:8000/v1",
                  api_key: str = None,
                  multistep: bool = True,
@@ -21,6 +26,9 @@ class AutonomyEmulator:
         self.multistep = multistep
         self.logger = logger
         self.history = ["Customers", "Accounts"]
+
+        if connect_kg:
+            self.kg_extractor = KgExtractor(kg_openai_api, kg_n4j_uri, kg_n4j_auth)
 
         if helper_type == 'endpoint':
             self.helper_base_url = helper_auth[0]
@@ -42,10 +50,18 @@ class AutonomyEmulator:
         sleep(2)  # FOR HIDING CHAT WINDOW
         if self.multistep:
             while True:  # DO-WHILE LOOP CONFORMING WITH PEP
-                encoded = ImageEncoder.encode(Snapshotter.snapshot(self.logger), logger=self.logger)
-                next_click = self.helper.plan_route(encoded, self.history)
+                encoded_1 = ImageEncoder.encode(Snapshotter.snapshot(self.logger), logger=self.logger)
+
+                if self.kg_extractor: self.kg_extractor.initialize_cache(encoded_1)
+
+                next_click = self.helper.plan_route(encoded_1, self.history)
                 self.history.append(next_click.strip())
-                result = self._send(prompt=next_click, encoded_image=encoded)
+                result = self._send(prompt=next_click, encoded_image=encoded_1)
+
+                if self.kg_extractor:
+                    encoded_2 = ImageEncoder.encode(Snapshotter.snapshot(self.logger), logger=self.logger)
+                    self.kg_extractor.extract_gui_schema(result[0], encoded_2)
+
                 print(self.history)
                 print("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
 

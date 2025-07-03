@@ -102,6 +102,24 @@ class SettingsDialog(QDialog):
         autonomous_layout.addWidget(self.autonomous_scanning_off)
         layout.addLayout(autonomous_layout)
 
+        self.knowledge_label = QLabel("Enable knowledge‐building on autonomous scanner (experimental):")
+        self.knowledge_on = QRadioButton("On")
+        self.knowledge_off = QRadioButton("Off")
+        self.knowledge_group = QButtonGroup()
+        self.knowledge_group.addButton(self.knowledge_on)
+        self.knowledge_group.addButton(self.knowledge_off)
+
+        layout.addWidget(self.knowledge_label)
+        kb_layout = QHBoxLayout()
+        kb_layout.addWidget(self.knowledge_on)
+        kb_layout.addWidget(self.knowledge_off)
+        layout.addLayout(kb_layout)
+
+        # make sure it's hidden by default
+        self.knowledge_label.setVisible(False)
+        self.knowledge_on.setVisible(False)
+        self.knowledge_off.setVisible(False)
+
         self.endpoint_url_label = QLabel("Endpoint URL:")
         self.endpoint_url_input = QLineEdit()
         layout.addWidget(self.endpoint_url_label)
@@ -200,6 +218,11 @@ class SettingsDialog(QDialog):
         self.gpt_api_key_label.setVisible(is_gpt)
         self.gpt_api_key_input.setVisible(is_gpt)
 
+        visible_kb = is_endpoint or is_gpt
+        self.knowledge_label.setVisible(visible_kb)
+        self.knowledge_on.setVisible(visible_kb)
+        self.knowledge_off.setVisible(visible_kb)
+
     def toggle_gui_api_key(self) -> None:
         """
         Method responsible for updating the visibility of cloud-deployed GUI model options in the settings menu
@@ -262,6 +285,8 @@ class SettingsDialog(QDialog):
                 else "off"
             ),
 
+            "knowledge_building": "on" if self.knowledge_on.isChecked() else "off",
+
             "autonomous_endpoint_url": self.endpoint_url_input.text(),
             "autonomous_endpoint_api_key": self.endpoint_api_key_input.text(),
             "autonomous_model_name": self.endpoint_model_name_input.text(),
@@ -306,6 +331,11 @@ class SettingsDialog(QDialog):
             self.autonomous_scanning_gpt.setChecked(True)
         else:
             self.autonomous_scanning_off.setChecked(True)
+
+        if data.get("knowledge_building") == "on":
+            self.knowledge_on.setChecked(True)
+        else:
+            self.knowledge_off.setChecked(True)
 
         self.update_autonomous_scanning_fields()
 
