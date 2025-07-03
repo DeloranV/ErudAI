@@ -1,53 +1,83 @@
 from time import sleep
-from openai import OpenAI
+import pyautogui
+from openai import OpenAI, APIStatusError
 import re
 import ast
 from agent import ActionPerformer
 from util import ImageEncoder, Snapshotter
-import pyautogui
+from .helper_gpt import HelperGPT
+from .helper_local import HelperEndpoint
+from kg import KgExtractor
 
-class Query:
+class AutonomyEmulator:
     def __init__(self,
-                 api_key: str,
-                 base_url: str,
-                 multistep: bool=True,
-                 scan: bool=False,
+                 helper_type: str,  # TODO ENUM HELPER TYPES
+                 helper_auth: str,
+                 connect_kg: bool = False,
+                 kg_openai_api = None,
+                 kg_n4j_uri = None,
+                 kg_n4j_auth = None,
+                 base_url: str = "http://127.0.0.1:8000/v1",
+                 api_key: str = None,
+                 multistep: bool = True,
                  logger = None):
-        self.api_key = api_key
         self.base_url = base_url
+        self.api_key = api_key
         self.multistep = multistep
         self.logger = logger
-        self.scan = scan
+        self.history = []
+        self.kg_extractor = None
 
-    def execute(self, prompt: str) -> None:
-        """
-        Method responsible for executing the entire pipeline of an action-type prompt
+        if connect_kg:
+            self.kg_extractor = KgExtractor(kg_openai_api, kg_n4j_uri, kg_n4j_auth)
 
-        :param prompt: Action prompt given by the user in the form of a string
-        """
-        sleep(1)    # FOR HIDING CHAT WINDOW
+        if helper_type == 'endpoint':
+            self.helper_base_url = helper_auth[0]
+            self.helper_api_key = helper_auth[1]
+            self.helper_model_name = helper_auth[2]
+            self.helper = HelperEndpoint(self.helper_base_url,
+                                         self.helper_api_key,
+                                         self.helper_model_name
+                                         )
+
+            #"http://127.0.0.1:8008/v1"
+            #"OpenGVLab/InternVL3-38B"
+
+        elif helper_type == 'gpt':
+            self.helper_openai_api = helper_auth[0]
+            self.helper = HelperGPT(openai_api=self.helper_openai_api)
+
+    def execute(self) -> None:
+        sleep(2)  # FOR HIDING CHAT WINDOW
         if self.multistep:
-            while True: # DO-WHILE LOOP CONFORMING WITH PEP
-                encoded = ImageEncoder.encode(Snapshotter.snapshot(self.logger), logger=self.logger)
-                result = self._send(prompt=prompt, encoded_image=encoded)
+            while True:  # DO-WHILE LOOP CONFORMING WITH PEP
+                encoded_1 = ImageEncoder.encode(Snapshotter.snapshot(self.logger), logger=self.logger)
+
+                if self.kg_extractor: self.kg_extractor.initialize_cache(encoded_1)
+
+                next_click = self.helper.plan_route(encoded_1, self.history)
+                self.history.append(next_click.strip())
+                result = self._send(prompt=next_click, encoded_image=encoded_1)
+
+                if self.kg_extractor:
+                    encoded_2 = ImageEncoder.encode(Snapshotter.snapshot(self.logger), logger=self.logger)
+                    self.kg_extractor.extract_gui_schema(next_click, encoded_2)
+
+                print(self.history)
+                print("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
 
                 if result is None:
                     return
 
     def _create_connection(self) -> OpenAI:
-        """
-        Method responsible for creating an OpenAI API client, based on the api key and url of the endpoint
-
-        :return: OpenAI client based upon properties of this Query object
-        """
         client = OpenAI(
-            api_key = f"{self.api_key}",
-            base_url = self.base_url,
+            api_key=f"{self.api_key}",
+            base_url=self.base_url,
         )
         return client
 
     @staticmethod
-    def _escape_single_quotes(text) -> str:
+    def _escape_single_quotes(text: str) -> str:
         pattern = r"(?<!\\)'"
         return re.sub(pattern, r"\\'", text)
 
@@ -100,51 +130,12 @@ class Query:
 
             if action_type in ["click"]:
                 start_box = action_inputs.get("start_box")
-
                 x1, y1 = 0, 0
                 if len(start_box) == 2:
                     x1, y1 = start_box
 
                 ActionPerformer.perform_click([int(x1), int(y1)])
                 return response
-
-            elif action_type == "scroll":
-                start_box = action_inputs.get("start_box")
-                direction = action_inputs.get("direction", "down").lower()
-
-                x = y = None
-
-                if start_box:
-                    try:
-                        box = ast.literal_eval(start_box) if isinstance(start_box, str) else start_box
-
-                        if isinstance(box, (tuple, list)):
-                            if len(box) == 2:
-                                x, y = map(int, box)
-                            elif len(box) == 4:
-                                x1, y1, x2, y2 = map(int, box)
-                                x = round((x1 + x2) / 2)
-                                y = round((y1 + y2) / 2)
-                            else:
-                                raise ValueError("start_box must have 2 or 4 elements")
-                        else:
-                            raise TypeError("start_box must be a tuple or list")
-                    except Exception as e:
-                        print(f"[scroll] Invalid start_box format: {start_box} — {e}")
-                        x = y = None  # fallback if parsing fails
-
-                try:
-                    scroll_amount = 100 if direction in ["up", "right"] else -100
-
-                    if x is not None and y is not None:
-                        pyautogui.scroll(scroll_amount, x=x, y=y)
-                    else:
-                        pyautogui.scroll(scroll_amount)
-
-                    return action_dict
-                except Exception as e:
-                    print(f"[scroll] Scroll action failed: {e}")
-                    return None
 
             if action_type == "type":
                 content = action_inputs.get("content", "")
@@ -159,7 +150,6 @@ class Query:
 
             if action_type == "finished":
                 return None
-
             return None
 
         except pyautogui.FailSafeException:
@@ -181,10 +171,10 @@ class Query:
             pattern = r"type\(content='(.*?)'\)"
             content = re.sub(pattern, escape_quotes, action_str)
 
-            action_str = Query._escape_single_quotes(content)
+            action_str = AutonomyEmulator._escape_single_quotes(content)
             action_str = "type(content='" + action_str + "')"
 
-        action_dict = Query._parse_action(action_str.replace("\n", "\\n").lstrip())
+        action_dict = AutonomyEmulator._parse_action(action_str.replace("\n", "\\n").lstrip())
 
         action_type = action_dict["function"]
         params = action_dict["args"]
@@ -206,40 +196,59 @@ class Query:
         }
         return action
 
-    def _send(self, prompt: str, encoded_image: str) -> dict[str, str | None | dict] | None | tuple[str, None]:
+    def _send(self, prompt: str, encoded_image: str) -> None | dict[str, str | None | dict] | tuple[str, None]:
         """
-        Method responsible for getting the next action needed for parsing, which gets proposed by a vision-language model such as UI Tars
-
-        :param prompt: Action prompt given by the user in the form of a string
-        :param encoded_image: B64 encoded screenshot of the current screen
-        :return: Next action or None if goal has been reached or model is waiting for a GUI shift to complete
+        Sends the request to the model on behalf of the user
+        Returns the coordinates of the queried element
+        Args:
+            @arg prompt - Prompt query to send to the model
+            @arg encoded_image - Encoded snapshot given in the form of a string
         """
         computer_use_prompt = f"""
-        You are a GUI agent. You are given a task, with screenshots. You need to perform the next action to complete the task.
-        
+        You need to click the button with the specified label to complete the task. 
+        Do not click the same element more than once.
+        Ignore windows taskbar. 
+        Ignore browser UI.
+        Focus only on the website in the browser.
+
         ## Output Format
         ```
         Thought: ...
         Action: ...
         ```
-        
+
         ## Action Space
-        
+
         click(start_box='(x1,y1)')
         left_double(start_box='<|box_start|>(x1,y1)<|box_end|>')
         type(content='xxx') # Use escape characters \\', \\\", and \\n in content part to ensure we can parse the content in normal python string format. If you want to submit your input, use \\n at the end of content. 
         scroll(start_box='<|box_start|>(x1,y1)<|box_end|>', direction='down or up or right or left')
         wait() #Sleep for 5s and take a screenshot to check for any changes.
-        finished(content='xxx') # When all steps are done and destination goal was reached. Use escape characters \\', \\", and \\n in content part to ensure we can parse the content in normal python string format.
-        
-        
+
         ## Note
         - Use English in `Thought` part.
-        - Write a small plan and finally summarize your next action (with its target element) in one sentence in `Thought` part.
-        
+        - Describe only the label of the element you've clicked in `Thought` part. Do not say anything else.
+
         ## User Instruction
-        {prompt}
+        Click {prompt}
         """
+        messages = [
+            {
+                "role": "system",
+                "content": [
+                    {
+                        "type": "text",
+                        "text": computer_use_prompt
+                    },
+                    {
+                        "type": "image_url",
+                        "image_url": {
+                            "url": f"data:image/png;base64,{encoded_image}"
+                        }
+                    }
+                ]
+            }
+        ]
 
         try:
             client = self._create_connection()
@@ -247,43 +256,31 @@ class Query:
                 extra_headers={},
                 extra_body={},
                 model="ByteDance-Seed/UI-TARS-1.5-7B",
-                messages=[
-                    {
-                        "role": "user",
-                        "content": [
-                            {
-                                "type": "text",
-                                "text": computer_use_prompt
-                            },
-                            {
-                                "type": "image_url",
-                                "image_url": {
-                                    "url": f"data:image/png;base64,{encoded_image}"
-                                }
-                            }
-                        ]
-                    }
-                ],
-                top_p = None,
-                temperature = None,
-                max_tokens = 150,
-                stream = False,
-                seed = None,
-                stop = None,
-                frequency_penalty = None,
-                presence_penalty = None
+                messages=messages,
+                # top_p=None,
+                # temperature=None,
+                # max_tokens=150,
+                # stream=False,
+                # seed=None,
+                # stop=None,
+                # frequency_penalty=None,
+                # presence_penalty=None
             )
 
             result = completion.choices[0].message.content
-
+            print("-----TARS-----\n", result.strip(), "\n---------------HISTORY----------------")
             if self.logger:
                 self.logger.log_text_data("response", result)
 
             if "wait" in result:
                 return "wait", None
 
-            structured = Query._parse_to_structure_output(result)
-            return Query._parse_to_pyautogui(structured)
+            structured = AutonomyEmulator._parse_to_structure_output(result)
+            return AutonomyEmulator._parse_to_pyautogui(structured)
+
+        except APIStatusError as e:
+            print("api error", e)
+            return None
 
         finally:
             if self.logger:

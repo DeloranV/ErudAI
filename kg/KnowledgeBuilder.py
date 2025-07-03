@@ -1,34 +1,33 @@
-import os, base64
-import time
+from typing import Tuple, Any
 
-from langchain_core.documents import Document
-from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_huggingface import HuggingFaceEmbeddings
-from langchain_chroma import Chroma
 import neo4j
 import json
-from openai import OpenAI, embeddings
-import asyncio
+from openai import OpenAI
 DB_NAME = "neo4j"
 
 # UNIFY INTO ONE PROMPT AND TELL IT TO CREATE TWO SEPARATE JSON'S ? (ONE FOR UI ONE FOR KNOWLEDGE)
 # IF USING SPLIT PROMPTS - SEND BOTH ASYNCHRONOUSLY !!!
 
-class kg_extractor:
-    def __init__(self, openai_api, n4j_uri):
+class KgExtractor:
+    def __init__(self, openai_api: str, n4j_uri: str, n4j_auth: tuple[str,str]):
         self.node_cache = {"response_json": None, "embedded_json": None}
         self.openai_api = openai_api
-        self.driver = neo4j.GraphDatabase.driver(n4j_uri)
+        self.driver = neo4j.GraphDatabase.driver(n4j_uri, auth=n4j_auth)
 
-    def initialize_cache(self, encoded_image):
+    def initialize_cache(self, encoded_image: str) -> None:
+        """
+        Method responsible for caching initial view of a single scan
+
+        :param encoded_image: B64 Encoded image of the initial view in the form of a string
+        """
         response, embed = self.extract_view(encoded_image)
         self.cache_view(response, embed)
 
-    def extract_GUI_schema(self, clicked_button_text, encoded_image):
+    def extract_gui_schema(self, clicked_button_text: str, encoded_image: str) -> None:
         response, embed = self.extract_view(encoded_image)
-        self.GUI_insertion(response, embed, clicked_button_text)
+        self.gui_insertion(response, embed, clicked_button_text)
 
-    def extract_view(self, encoded_image):
+    def extract_view(self, encoded_image: str) -> Tuple[Any, list[float]]:
         print("GUI extraction started")
         PROMPT_GUI = """
         You are a GUI agent tasked with recognizing UI elements in a screenshot and giving a precise description of the gui according to the format below:
@@ -58,26 +57,28 @@ class kg_extractor:
         Ignore system tray.
         Replace any non-english characters with english alphabet.
         """
+        messages = [
+            {
+                "role": "developer",
+                "content": PROMPT_GUI
+            },
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "image_url",
+                        "image_url": {
+                            "url": f"data:image/png;base64,{encoded_image}"
+                        }
+                    }
+                ]
+            }
+        ]
+
         client = OpenAI(api_key=self.openai_api)
         completion = client.chat.completions.create(
             model="gpt-4.1",
-            messages=[
-                {
-                    "role": "developer",
-                    "content": f"{PROMPT_GUI}"
-                },
-                {
-                    "role": "user",
-                    "content": [
-                        {
-                            "type": "image_url",
-                            "image_url": {
-                                "url": f"data:image/png;base64,{encoded_image}"
-                            }
-                        }
-                    ]
-                }
-            ]
+            messages=messages
         )
 
         response = completion.choices[0].message.content
@@ -99,7 +100,13 @@ class kg_extractor:
         #  `vector.similarity_function`: 'cosine'
         # }}
 
-    def check_existing(self, embedding):
+    def check_existing(self, embedding: list[float]) -> str | None:
+        """
+        Checks whether a view already exists in a database, based on the given view embedding which gets checked
+        against embeddings stored in the graph database. Cosine similarity is used for this purpose.
+
+        :param embedding: Vector embedding representing the view to be checked against the database given as a list of floats
+        """
         with self.driver.session(database=DB_NAME) as session:
             query = f'''
             CALL {{
@@ -120,19 +127,24 @@ class kg_extractor:
             if record["score"] > 0.98:
                 print("View is already in database")
                 node_data = record["node"]
-                # Safely extract and serialize the node properties
                 if node_data:
-                    node_properties = dict(node_data.items())  # or node_data._properties
+                    node_properties = dict(node_data.items())
                     normalized_properties = {
                         "view_name": node_properties.get("name"),
                         "view_url": node_properties.get("url"),
-                        "elements": node_properties.get("elements", [])  # Default to [] if missing
+                        "elements": node_properties.get("elements", [])
                     }
                     json_format = json.dumps(normalized_properties)
                 return json_format
             return None
 
-    def cache_view(self, response, embed):
+    def cache_view(self, response, embed: list[float]) -> None:
+        """
+        Method responsible for caching a new, previously unscanned view
+
+        :param response:
+        :param embed: Vector embedding representing the view to be cached given as a list of floats
+        """
         if self.check_existing(embed):
             json_format = self.check_existing(embed)
             self.node_cache["response_json"] = json.loads(json_format)
@@ -140,7 +152,15 @@ class kg_extractor:
         self.node_cache["response_json"] = response
         self.node_cache["embedded_json"] = embed
 
-    def GUI_insertion(self, node1, embed1, clicked_button):
+    def gui_insertion(self, node1, embed1: list[float], clicked_button: str) -> None:
+        """
+        Method responsible for inserting into the graph database a cached view along with the current view and linking
+        both with a :LEADS_TO relationship. Each view is also linked to its respective UI elements with a :HAS relationship
+
+        :param node1:
+        :param embed1: Vector embedding representing the view to be linked with the cached view
+        :param clicked_button: Label on a button which led from the cached view into the given view given in the form of a string
+        """
         view_name1 = node1['view_name']
         view_url1 = node1['view_url']
 
@@ -153,7 +173,6 @@ class kg_extractor:
             cached_view_name = cached_json["view_name"]
             cached_view_url = cached_json["view_url"]
 
-        # Insert new View with embedding
         with self.driver.session(database=DB_NAME) as session:
             for item in node1['elements']:
                 query = f'''
@@ -182,84 +201,3 @@ class kg_extractor:
             MERGE (e)-[:LEADS_TO]->(v)
             '''
             session.run(query)
-
-    def extract_knowledge_schema(self, encoded_image):
-        print("knowledge extraction started")
-        PROMPT_TEXT = """
-        You are a knowledge builder agent, extracting useful information from screenshots of software.
-        Useful information is anything that's not related to the software and GUI itself. In this case, it would be email contents.
-        This knowledge will be used to build a concrete vector knowledge base.
-
-        Respond in pure extracted text format, so that it can be inserted as a document into a vector database.
-
-        Ignore the UI elements. Take into consideration only useful information.
-        Replace any non-english characters with english alphabet.
-        """
-        client = OpenAI(api_key=self.openai_api)
-        completion = client.chat.completions.create(
-            model="gpt-4.1",
-            messages=[
-                {
-                    "role": "developer",
-                    "content": f"{PROMPT_TEXT}"
-                },
-                {
-                    "role": "user",
-                    "content": [
-                        {
-                            "type": "image_url",
-                            "image_url": {
-                                "url": f"data:image/png;base64,{encoded_image}"
-                            }
-                        }
-                    ]
-                }
-            ]
-        )
-
-        response = completion.choices[0].message.content
-
-        text_splitter = RecursiveCharacterTextSplitter(
-            chunk_size=1000, chunk_overlap=200, add_start_index=True
-        )
-
-        all_splits = text_splitter.split_text(response)
-
-        embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-mpnet-base-v2")
-
-        vector_store = Chroma(
-            collection_name="knowledge_base",
-            embedding_function=embeddings,
-            persist_directory="./vector_knowledge_base"
-        )
-
-        ids = vector_store.add_texts(all_splits)
-
-    # def vector_contents(self):
-    #     embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-mpnet-base-v2")
-    #
-    #     vector_store = Chroma(
-    #         collection_name="knowledge_base",
-    #         embedding_function=embeddings,
-    #         persist_directory="./vector_knowledge_base"
-    #     )
-    #
-    #     results = vector_store.similarity_search(
-    #         "When is my interview scheduled?"
-    #     )
-    #
-    #     RAGContext = '\n'.join(result.page_content for result in results)  # CONTEXT READY TO PARSE TO THE MODEL
-    #     print(RAGContext)
-
-
-# async def main():
-#     # CLEANER WAY THAN GATHER - USE asyncio ONLY IN THE IO-BLOCKING FRAGMENTS - OPENAI API CALLS
-#     kg_build = kg_extractor()
-#     await asyncio.gather(
-#         asyncio.to_thread(kg_build.extract_GUI_schema),
-#         asyncio.to_thread(kg_build.extract_knowledge_schema)
-#     )
-#     kg_build.vector_contents()
-
-
-# asyncio.run(main())

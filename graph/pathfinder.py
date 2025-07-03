@@ -13,10 +13,18 @@ class Pathfinder:
         self.planner = Planner(openai_api)
         self.logger = logger
 
-    def test_connectivity(self):
+    def test_connectivity(self) -> None:
+        """
+        Helper method which throws an exception if there is a problem with neo4j connection
+        """
         self.driver.verify_connectivity()
 
-    def get_all_nodes(self):
+    def get_all_nodes(self) -> str: # TODO tuple instead of str context var
+        """
+        Method responsible for extracting all nodes stored in a neo4j database and joining them to form a single comma separated string
+
+        :return: String containing comma separated names of stored nodes
+        """
         with self.driver.session(database=self.DB_NAME) as session:
             result = session.run("MATCH (n)-[r]->(v) RETURN n.name, type(r), v.name")
             context_var = ""
@@ -25,41 +33,44 @@ class Pathfinder:
             return context_var
 
     @staticmethod
-    def generate_path_query(start_node, end_node):
+    def generate_path_query(start_node: str, end_node: str) -> str:
+        """
+        Method responsible for constructing a pathfinding Cypher query, based on given a start and end node
+
+        :param start_node: Node from which the path originates, given as a string of its name
+        :param end_node: Node to which the path will be found, given as a string of its name
+        :return: A complete Cypher query for performing a path search, given in the form of a string
+        """
         path_query = f"""
                 MATCH p = SHORTEST 1 ({{name: '{start_node}'}})-->+({{name: '{end_node}'}})
                 RETURN p
                 """
         return path_query
 
-    def get_ui_path(self, user_prompt) -> str:
-        context_var = ""
+    def get_ui_path(self, user_prompt: str) -> str:
+        """
+        Method responsible for giving a complete path of UI elements and views through which to navigate, in order to complete a given action
+
+        :param user_prompt: Action prompt given by the user in the form of a string
+        :return: A path of elements to go through, in order to reach the goal, returned in the form of a string
+        """
         start_end = self.planner.plan_route(user_prompt, self.get_all_nodes())
         path_query = Pathfinder.generate_path_query(start_end['start_node'], start_end['end_node'])
 
         with self.driver.session(database=self.DB_NAME) as session:
-            result = session.run(path_query)
-            for record in result:
-                path = record['p']
-                nodes = path.nodes
-                relationships = path.relationships
+            record = session.run(path_query).single()
+        if not record:
+            return ""
 
-            for i in range(len(relationships)):
-                nodei = nodes[i]
-                if 'type' not in nodei:
-                    nodei_type = ""
-                else:
-                    nodei_type = nodei['type']
-                # TODO REFACTOR THIS TRASH
-                reli = relationships[i].type
+        path = record['p']
+        nodes = path.nodes
+        rels = path.relationships
 
-                nodei1 = nodes[i + 1]
-                if 'type' not in nodei1:
-                    nodei1_type = ""
-                else:
-                    nodei1_type = nodei1['type']
+        lines = []
+        for src, rel, dst in zip(nodes, rels, nodes[1:]):
+            src_type = src.get('type', "")
+            dst_type = dst.get('type', "")
+            lines.append(f"{src['name']} {src_type} {rel.type} {dst['name']} {dst_type}")
 
-                context_var += " ".join([nodei['name'], nodei_type, reli, nodei1['name'], nodei1_type, "\n"])
-
-        return context_var
+        return "\n".join(lines)
 

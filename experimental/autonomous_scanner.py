@@ -1,33 +1,28 @@
 from time import sleep
-from openai import OpenAI
+import pyautogui
+from openai import OpenAI, APIStatusError
 import re
 import ast
 from agent import ActionPerformer
 from util import ImageEncoder, Snapshotter
-import pyautogui
 
 class Query:
     def __init__(self,
                  api_key: str,
                  base_url: str,
-                 multistep: bool=True,
-                 scan: bool=False,
-                 logger = None):
+                 multistep: bool = True,
+                 scan: bool = False,
+                 logger=None):
         self.api_key = api_key
         self.base_url = base_url
         self.multistep = multistep
         self.logger = logger
         self.scan = scan
 
-    def execute(self, prompt: str) -> None:
-        """
-        Method responsible for executing the entire pipeline of an action-type prompt
-
-        :param prompt: Action prompt given by the user in the form of a string
-        """
-        sleep(1)    # FOR HIDING CHAT WINDOW
+    def execute(self, prompt: str):
+        sleep(1)  # FOR HIDING CHAT WINDOW
         if self.multistep:
-            while True: # DO-WHILE LOOP CONFORMING WITH PEP
+            while True:  # DO-WHILE LOOP CONFORMING WITH PEP
                 encoded = ImageEncoder.encode(Snapshotter.snapshot(self.logger), logger=self.logger)
                 result = self._send(prompt=prompt, encoded_image=encoded)
 
@@ -35,24 +30,19 @@ class Query:
                     return
 
     def _create_connection(self) -> OpenAI:
-        """
-        Method responsible for creating an OpenAI API client, based on the api key and url of the endpoint
-
-        :return: OpenAI client based upon properties of this Query object
-        """
         client = OpenAI(
-            api_key = f"{self.api_key}",
-            base_url = self.base_url,
+            api_key=f"{self.api_key}",
+            base_url=self.base_url,
         )
         return client
 
     @staticmethod
-    def _escape_single_quotes(text) -> str:
+    def _escape_single_quotes(text):
         pattern = r"(?<!\\)'"
         return re.sub(pattern, r"\\'", text)
 
     @staticmethod
-    def _parse_action(action_str: str) -> dict[str, str | None | dict] | None:
+    def _parse_action(action_str):
         try:
             node = ast.parse(action_str, mode='eval')
 
@@ -92,7 +82,7 @@ class Query:
             return None
 
     @staticmethod
-    def _parse_to_pyautogui(response: dict[str, str | None | dict]) -> dict[str, str | None | dict] | None:
+    def _parse_to_pyautogui(response):
         try:
             action_dict = response
             action_type = action_dict.get("action_type")
@@ -101,50 +91,14 @@ class Query:
             if action_type in ["click"]:
                 start_box = action_inputs.get("start_box")
 
-                x1, y1 = 0, 0
+                x2, y2 = 0, 0
                 if len(start_box) == 2:
                     x1, y1 = start_box
+                    # x2 = round(int(x1) * 1280 / 1000)
+                    # y2 = round(int(y1) * 720 / 1000)
 
                 ActionPerformer.perform_click([int(x1), int(y1)])
                 return response
-
-            elif action_type == "scroll":
-                start_box = action_inputs.get("start_box")
-                direction = action_inputs.get("direction", "down").lower()
-
-                x = y = None
-
-                if start_box:
-                    try:
-                        box = ast.literal_eval(start_box) if isinstance(start_box, str) else start_box
-
-                        if isinstance(box, (tuple, list)):
-                            if len(box) == 2:
-                                x, y = map(int, box)
-                            elif len(box) == 4:
-                                x1, y1, x2, y2 = map(int, box)
-                                x = round((x1 + x2) / 2)
-                                y = round((y1 + y2) / 2)
-                            else:
-                                raise ValueError("start_box must have 2 or 4 elements")
-                        else:
-                            raise TypeError("start_box must be a tuple or list")
-                    except Exception as e:
-                        print(f"[scroll] Invalid start_box format: {start_box} — {e}")
-                        x = y = None  # fallback if parsing fails
-
-                try:
-                    scroll_amount = 100 if direction in ["up", "right"] else -100
-
-                    if x is not None and y is not None:
-                        pyautogui.scroll(scroll_amount, x=x, y=y)
-                    else:
-                        pyautogui.scroll(scroll_amount)
-
-                    return action_dict
-                except Exception as e:
-                    print(f"[scroll] Scroll action failed: {e}")
-                    return None
 
             if action_type == "type":
                 content = action_inputs.get("content", "")
@@ -167,7 +121,7 @@ class Query:
             return None
 
     @staticmethod
-    def _parse_to_structure_output(text: str) -> dict[str, str | None | dict | dict]:
+    def _parse_to_structure_output(text):
         text = text.strip()
 
         assert "Action:" in text
@@ -206,37 +160,41 @@ class Query:
         }
         return action
 
-    def _send(self, prompt: str, encoded_image: str) -> dict[str, str | None | dict] | None | tuple[str, None]:
+    def _send(self, prompt: str, encoded_image: str):
         """
-        Method responsible for getting the next action needed for parsing, which gets proposed by a vision-language model such as UI Tars
-
-        :param prompt: Action prompt given by the user in the form of a string
-        :param encoded_image: B64 encoded screenshot of the current screen
-        :return: Next action or None if goal has been reached or model is waiting for a GUI shift to complete
+        Sends the request to the model on behalf of the user
+        Returns the coordinates of the queried element
+        Args:
+            @arg prompt - Prompt query to send to the model
+            @arg encoded_image - Encoded snapshot given in the form of a string
         """
         computer_use_prompt = f"""
-        You are a GUI agent. You are given a task, with screenshots. You need to perform the next action to complete the task.
-        
+        You are a GUI scanning agent.Your task is to explore software on the screenshot breadth first.You are given a screenshot of current screen. 
+        Your task is to click every button which could be a link to a next view.You need to perform the next action to complete the task. 
+        If in doubt, go back to the homepage with the Comarch BSS button in top-left.
+        Clickable elements have an icon to the left with adjacent text on the right.
+        Do not click the same element more than once.Ignore windows taskbar.Ignore browser UI.Focus only on the website in the browser.
+
         ## Output Format
         ```
         Thought: ...
         Action: ...
         ```
-        
+
         ## Action Space
-        
+
         click(start_box='(x1,y1)')
         left_double(start_box='<|box_start|>(x1,y1)<|box_end|>')
         type(content='xxx') # Use escape characters \\', \\\", and \\n in content part to ensure we can parse the content in normal python string format. If you want to submit your input, use \\n at the end of content. 
         scroll(start_box='<|box_start|>(x1,y1)<|box_end|>', direction='down or up or right or left')
         wait() #Sleep for 5s and take a screenshot to check for any changes.
         finished(content='xxx') # When all steps are done and destination goal was reached. Use escape characters \\', \\", and \\n in content part to ensure we can parse the content in normal python string format.
-        
-        
+
+
         ## Note
         - Use English in `Thought` part.
-        - Write a small plan and finally summarize your next action (with its target element) in one sentence in `Thought` part.
-        
+        - Describe only the label of the element you've clicked in `Thought` part. Do not say anything else.
+
         ## User Instruction
         {prompt}
         """
@@ -246,10 +204,10 @@ class Query:
             completion = client.chat.completions.create(
                 extra_headers={},
                 extra_body={},
-                model="ByteDance-Seed/UI-TARS-1.5-7B",
+                model="OpenGVLab/InternVL3-8B",
                 messages=[
                     {
-                        "role": "user",
+                        "role": "system",
                         "content": [
                             {
                                 "type": "text",
@@ -264,18 +222,18 @@ class Query:
                         ]
                     }
                 ],
-                top_p = None,
-                temperature = None,
-                max_tokens = 150,
-                stream = False,
-                seed = None,
-                stop = None,
-                frequency_penalty = None,
-                presence_penalty = None
+                top_p=None,
+                temperature=None,
+                max_tokens=150,
+                stream=False,
+                seed=None,
+                stop=None,
+                frequency_penalty=None,
+                presence_penalty=None
             )
 
             result = completion.choices[0].message.content
-
+            print(result)
             if self.logger:
                 self.logger.log_text_data("response", result)
 
@@ -285,6 +243,15 @@ class Query:
             structured = Query._parse_to_structure_output(result)
             return Query._parse_to_pyautogui(structured)
 
+        except APIStatusError as e:
+            print("api error", e)
+            return None
+
         finally:
             if self.logger:
                 self.logger.log_text_data("prompt", prompt)
+
+
+query = Query(api_key=None,
+              base_url="http://127.0.0.1:8000/v1")
+query.execute("")
