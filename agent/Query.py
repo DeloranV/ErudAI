@@ -1,10 +1,11 @@
 from time import sleep
-from openai import OpenAI
+from openai import AsyncOpenAI
 import re
 import ast
 from agent import ActionPerformer
 from util import ImageEncoder, Snapshotter
 import pyautogui
+import asyncio
 
 class Query:
     def __init__(self,
@@ -19,7 +20,11 @@ class Query:
         self.logger = logger
         self.scan = scan
 
-    def execute(self, prompt: str) -> None:
+    def snapshot_and_encode(self, logger):
+        snapshot = Snapshotter.snapshot(logger)
+        return ImageEncoder.encode(snapshot, logger=logger)
+
+    async def execute(self, prompt: str) -> None:
         """
         Method responsible for executing the entire pipeline of an action-type prompt
 
@@ -28,19 +33,19 @@ class Query:
         sleep(1)    # FOR HIDING CHAT WINDOW
         if self.multistep:
             while True: # DO-WHILE LOOP CONFORMING WITH PEP
-                encoded = ImageEncoder.encode(Snapshotter.snapshot(self.logger), logger=self.logger)
-                result = self._send(prompt=prompt, encoded_image=encoded)
+                encoded = await asyncio.to_thread(self.snapshot_and_encode, self.logger)
+                result = await self._send(prompt=prompt, encoded_image=encoded)
 
                 if result is None:
                     return
 
-    def _create_connection(self) -> OpenAI:
+    def _create_connection(self) -> AsyncOpenAI:
         """
         Method responsible for creating an OpenAI API client, based on the api key and url of the endpoint
 
         :return: OpenAI client based upon properties of this Query object
         """
-        client = OpenAI(
+        client = AsyncOpenAI(
             api_key = f"{self.api_key}",
             base_url = self.base_url,
         )
@@ -211,7 +216,7 @@ class Query:
     # - Too much responsibility
     # - Prompt in code ? WTF - split into a file
     # - If "wait" in result - magic string
-    def _send(self, prompt: str, encoded_image: str) -> dict[str, str | None | dict] | None | tuple[str, None]:
+    async def _send(self, prompt: str, encoded_image: str) -> dict[str, str | None | dict] | None | tuple[str, None]:
         """
         Method responsible for getting the next action needed for parsing, which gets proposed by a vision-language model such as UI Tars
 
@@ -248,7 +253,7 @@ class Query:
 
         try:
             client = self._create_connection()
-            completion = client.chat.completions.create(
+            completion = await client.chat.completions.create(
                 extra_headers={},
                 extra_body={},
                 model="ByteDance-Seed/UI-TARS-1.5-7B",

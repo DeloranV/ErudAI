@@ -1,34 +1,32 @@
 from typing import Tuple, Any
-
 import neo4j
 import json
-from openai import OpenAI
+from openai import OpenAI, AsyncOpenAI
 DB_NAME = "neo4j"
 
 # UNIFY INTO ONE PROMPT AND TELL IT TO CREATE TWO SEPARATE JSON'S ? (ONE FOR UI ONE FOR KNOWLEDGE)
 # IF USING SPLIT PROMPTS - SEND BOTH ASYNCHRONOUSLY !!!
 
-# TODO REMAKE FOR ASYNC INSTEAD OF THREADS
 class KgExtractor:
     def __init__(self, openai_api: str, n4j_uri: str, n4j_auth: tuple[str,str]):
         self.node_cache = {"response_json": None, "embedded_json": None}
         self.openai_api = openai_api
-        self.driver = neo4j.GraphDatabase.driver(n4j_uri, auth=n4j_auth)
+        self.driver = neo4j.AsyncGraphDatabase.driver(n4j_uri, auth=n4j_auth)
 
-    def initialize_cache(self, encoded_image: str) -> None:
+    async def initialize_cache(self, encoded_image: str) -> None:
         """
         Method responsible for caching initial view of a single scan
 
         :param encoded_image: B64 Encoded image of the initial view in the form of a string
         """
-        response, embed = self.extract_view(encoded_image)
-        self.cache_view(response, embed)
+        response, embed = await self.extract_view(encoded_image)
+        await self.cache_view(response, embed)
 
-    def extract_gui_schema(self, clicked_button_text: str, encoded_image: str) -> None:
-        response, embed = self.extract_view(encoded_image)
-        self.gui_insertion(response, embed, clicked_button_text)
+    async def extract_gui_schema(self, clicked_button_text: str, encoded_image: str) -> None:
+        response, embed = await self.extract_view(encoded_image)
+        await self.gui_insertion(response, embed, clicked_button_text)
 
-    def extract_view(self, encoded_image: str) -> Tuple[Any, list[float]]:
+    async def extract_view(self, encoded_image: str) -> Tuple[Any, list[float]]:
         print("GUI extraction started")
         PROMPT_GUI = """
         You are a GUI agent tasked with recognizing UI elements in a screenshot and giving a precise description of the gui according to the format below:
@@ -76,20 +74,23 @@ class KgExtractor:
             }
         ]
 
-        client = OpenAI(api_key=self.openai_api)
+        client = AsyncOpenAI(api_key=self.openai_api)
         completion = client.chat.completions.create(
             model="gpt-4.1",
             messages=messages
         )
 
-        response = completion.choices[0].message.content
+        reply = await completion
+        response = reply.choices[0].message.content
         responsejs = json.loads(response)[0]
 
         embed_response = client.embeddings.create(
             input=response,
             model="text-embedding-ada-002"
         )
-        embedding = embed_response.data[0].embedding
+        embedded_response = await embed_response
+
+        embedding = embedded_response.data[0].embedding
 
         return responsejs, embedding
 
@@ -101,14 +102,14 @@ class KgExtractor:
         #  `vector.similarity_function`: 'cosine'
         # }}
 
-    def check_existing(self, embedding: list[float]) -> str | None:
+    async def check_existing(self, embedding: list[float]) -> str | None:
         """
         Checks whether a view already exists in a database, based on the given view embedding which gets checked
         against embeddings stored in the graph database. Cosine similarity is used for this purpose.
 
         :param embedding: Vector embedding representing the view to be checked against the database given as a list of floats
         """
-        with self.driver.session(database=DB_NAME) as session:
+        async with self.driver.session(database=DB_NAME) as session:
             query = f'''
             CALL {{
               CALL db.index.vector.queryNodes('viewEmbeddings', 1, {embedding})
@@ -121,9 +122,9 @@ class KgExtractor:
             }}
             RETURN node, name, score
             '''
-            similar_view = session.run(query).fetch(1)
-            print(similar_view[0]["score"])
-            record = similar_view[0]
+            similar_views = await session.run(query)
+            record = await similar_views.single()
+            print(record["score"])
 
             if record["score"] > 0.98:
                 print("View is already in database")
@@ -139,21 +140,21 @@ class KgExtractor:
                 return json_format
             return None
 
-    def cache_view(self, response, embed: list[float]) -> None:
+    async def cache_view(self, response, embed: list[float]) -> None:
         """
         Method responsible for caching a new, previously unscanned view
 
         :param response:
         :param embed: Vector embedding representing the view to be cached given as a list of floats
         """
-        if self.check_existing(embed):
-            json_format = self.check_existing(embed)
+        if await self.check_existing(embed):
+            json_format = await self.check_existing(embed)
             self.node_cache["response_json"] = json.loads(json_format)
 
         self.node_cache["response_json"] = response
         self.node_cache["embedded_json"] = embed
 
-    def gui_insertion(self, node1, embed1: list[float], clicked_button: str) -> None:
+    async def gui_insertion(self, node1, embed1: list[float], clicked_button: str) -> None:
         """
         Method responsible for inserting into the graph database a cached view along with the current view and linking
         both with a :LEADS_TO relationship. Each view is also linked to its respective UI elements with a :HAS relationship
@@ -165,7 +166,7 @@ class KgExtractor:
         view_name1 = node1['view_name']
         view_url1 = node1['view_url']
 
-        if self.check_existing(embed1):
+        if await self.check_existing(embed1):
             print("View already exists")
             return
         else:
@@ -174,7 +175,8 @@ class KgExtractor:
             cached_view_name = cached_json["view_name"]
             cached_view_url = cached_json["view_url"]
 
-        with self.driver.session(database=DB_NAME) as session:
+        # USE UNWIND INSTEAD OF MERGES
+        async with self.driver.session(database=DB_NAME) as session:
             for item in node1['elements']:
                 query = f'''
 
@@ -183,7 +185,7 @@ class KgExtractor:
                 MERGE (v)-[:HAS]->(e)
                 RETURN v
                 '''
-                session.run(query)
+                await session.run(query)
 
             for item in cached_json['elements']:
                 query = f'''
@@ -193,12 +195,11 @@ class KgExtractor:
                 MERGE (v)-[:HAS]->(e)
                 RETURN v.name
                 '''
-                record = session.run(query).fetch(1)[0]
-                view2 = record["v.name"]
+                await session.run(query)
 
             query = f'''
             MATCH (v:View {{name: "{view_name1}"}})
             MATCH (e:UIElement {{name: "{clicked_button}"}})
             MERGE (e)-[:LEADS_TO]->(v)
             '''
-            session.run(query)
+            await session.run(query)
