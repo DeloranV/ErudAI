@@ -10,6 +10,7 @@ from kg.KnowledgeBuilder import KgExtractor
 from util import Snapshotter, ImageEncoder
 from autonomous_scanner import AutonomyEmulator
 
+# TODO CHANGE THREAD FOR ASYNC ?
 class AutonomyEmulatorThread(QThread):
     def __init__(self,
                  autonomous_mode,
@@ -24,6 +25,7 @@ class AutonomyEmulatorThread(QThread):
     def run(self):
         self.emulator.execute()
 
+# TODO CHANGE THREAD FOR ASYNC ?
 class KGInitThread(QThread):
     error_occurred = Signal(str)
 
@@ -38,6 +40,7 @@ class KGInitThread(QThread):
         except Exception as e:
             self.error_occurred.emit(str(e))
 
+# TODO CHANGE THREAD FOR ASYNC ?
 class ScanThread(QThread):
     error_occurred = Signal(str)
 
@@ -52,7 +55,7 @@ class ScanThread(QThread):
             self.kg_builder.extract_gui_schema(self.clicked_button, self.encoded_image)
         except Exception as e:
             self.error_occurred.emit(str(e))
-
+# TODO CHANGE THREAD FOR ASYNC ?
 class QueryThread(QThread):
     error_occurred = Signal(str)
 

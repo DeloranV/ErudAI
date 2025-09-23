@@ -206,6 +206,11 @@ class Query:
         }
         return action
 
+    # TODO terrible method:
+    # - Too many return types - return a custom "SendResult" object and use exceptions
+    # - Too much responsibility
+    # - Prompt in code ? WTF - split into a file
+    # - If "wait" in result - magic string
     def _send(self, prompt: str, encoded_image: str) -> dict[str, str | None | dict] | None | tuple[str, None]:
         """
         Method responsible for getting the next action needed for parsing, which gets proposed by a vision-language model such as UI Tars

@@ -8,7 +8,7 @@ from util import ImageEncoder, Snapshotter
 from .helper_gpt import HelperGPT
 from .helper_local import HelperEndpoint
 from kg import KgExtractor
-
+# TODO THIS IS REPEATED FROM Query CLASS - REFACTOR BOTH INTO A SINGLE CLASS
 class AutonomyEmulator:
     def __init__(self,
                  helper_type: str,  # TODO ENUM HELPER TYPES

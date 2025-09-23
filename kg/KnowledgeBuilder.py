@@ -8,6 +8,7 @@ DB_NAME = "neo4j"
 # UNIFY INTO ONE PROMPT AND TELL IT TO CREATE TWO SEPARATE JSON'S ? (ONE FOR UI ONE FOR KNOWLEDGE)
 # IF USING SPLIT PROMPTS - SEND BOTH ASYNCHRONOUSLY !!!
 
+# TODO REMAKE FOR ASYNC INSTEAD OF THREADS
 class KgExtractor:
     def __init__(self, openai_api: str, n4j_uri: str, n4j_auth: tuple[str,str]):
         self.node_cache = {"response_json": None, "embedded_json": None}
